@@ -18,7 +18,7 @@ defmodule Astro.Time do
   def to_datetime(julian_date) when is_float(julian_date) do
     {y, m, d, h, mn, s, us} = jd2dt(julian_date)
 
-    %DateTime{
+    %NaiveDateTime{
       year: y,
       month: m,
       day: d,
@@ -26,15 +26,11 @@ defmodule Astro.Time do
       minute: mn,
       second: s,
       microsecond: {us, 6},
-      calendar: Calendar.ISO,
-      std_offset: 0,
-      time_zone: "Etc/UTC",
-      utc_offset: 0,
-      zone_abbr: "UTC"
+      calendar: Calendar.ISO
     }
   end
 
-  def to_julian_date(%DateTime{} = dt) do
+  def to_julian_date(dt) when is_struct(dt, DateTime) or is_struct(dt, NaiveDateTime) do
     sec =
       case dt.microsecond do
         {_value, 0} -> dt.second * 1.0

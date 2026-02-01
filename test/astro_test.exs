@@ -1,5 +1,5 @@
 defmodule AstroTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
 
   doctest Astro
 end

@@ -10,7 +10,7 @@ defmodule Astro.MixProject do
       version: @version,
 
       # Elixir
-      elixir: "~> 1.14",
+      elixir: "~> 1.15",
       build_embedded: Mix.env() == :prod,
       start_permanent: Mix.env() == :prod,
       consolidate_protocols: Mix.env() != :test,
@@ -51,8 +51,8 @@ defmodule Astro.MixProject do
       # Development
       {:ex_check, "~> 0.16", only: [:dev], runtime: false},
       {:credo, "~> 1.7", only: [:dev], runtime: false},
-      {:ex_doc, "~> 0.36", runtime: false},
-      {:mix_test_watch, "~> 1.2", only: [:dev], runtime: false}
+      {:ex_doc, "~> 0.40", runtime: false},
+      {:mix_test_watch, "~> 1.4", only: [:dev], runtime: false}
     ]
   end
 
