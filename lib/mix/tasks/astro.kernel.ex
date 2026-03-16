@@ -7,9 +7,10 @@ defmodule Mix.Tasks.Astro.Kernels do
   If you want to download more kernels manually look here:
   https://naif.jpl.nasa.gov/pub/naif/generic_kernels/
   """
-  @requirements ["app.start"]
 
   use Mix.Task
+
+  @requirements ["app.start"]
 
   @base_url "https://naif.jpl.nasa.gov/pub/naif/generic_kernels"
 

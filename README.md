@@ -26,3 +26,17 @@ It is a bit more complicated then normal lib so pay attention:
 ```bash
 mix astro.kernels
 ```
+
+## Time API
+
+`Astro.Time` represents Julian Dates as two-part tuples `{jd1, jd2}` rather
+than a single float. This follows ERFA/SOFA conventions and preserves much more
+precision for time-scale conversions.
+
+```elixir
+iex> jd = Astro.Time.to_julian_date(~N[2000-01-01 12:00:00])
+iex> jd
+{2451544.5, 0.5}
+iex> Astro.Time.day2sec(jd)
+0.0
+```

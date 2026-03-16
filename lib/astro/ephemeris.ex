@@ -136,14 +136,14 @@ defmodule Astro.Ephemeris do
 
   ## Example
 
-  Get geometric state of Earth relative to Solar System Barycenter in J2000 reference plane at
-  thr current date
+  Get geometric state of Earth relative to Solar System Barycenter in the
+  `J2000` frame at the J2000 epoch.
 
-      iex> now = DateTime.utc_now()
-      iex> jd = Astro.Time.to_julian_date(now)
-      iex> et = Astro.Time.day2sec(jd)
-      iex> Astro.Ephemeris.spkezr("EARTH", et, "J2000", "NONE", "SSB")
-      {:ok, [x, y, z, dx, dy, dz], lt}
+      iex> {:ok, state, lt} = Astro.Ephemeris.spkezr("EARTH", 0.0, "J2000", "NONE", "SSB")
+      iex> length(state)
+      6
+      iex> is_float(lt)
+      true
 
   More info at
   https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/spkezr_c
@@ -169,14 +169,14 @@ defmodule Astro.Ephemeris do
 
   ## Example
 
-  Get geometric state of Earth relative to Solar System Barycenter in J2000 reference plane at
-  thr current date
+  Get geometric state of Earth relative to Solar System Barycenter in the
+  `J2000` frame at the J2000 epoch.
 
-      iex> now = DateTime.utc_now()
-      iex> jd = Astro.Time.to_julian_date(now)
-      iex> et = Astro.Time.day2sec(jd)
-      iex> Astro.Ephemeris.spkez(399, et, "J2000", "NONE", 0)
-      {:ok, [x, y, z, dx, dy, dz], lt}
+      iex> {:ok, state, lt} = Astro.Ephemeris.spkez(399, 0.0, "J2000", "NONE", 0)
+      iex> length(state)
+      6
+      iex> is_float(lt)
+      true
 
   More info at
   https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/spkez_c
@@ -197,14 +197,14 @@ defmodule Astro.Ephemeris do
 
   ## Example
 
-  Get geometric state of Earth relative to Solar System Barycenter in J2000 reference plane at
-  thr current date
+  Get geometric state of Earth relative to Solar System Barycenter in the
+  `J2000` frame at the J2000 epoch.
 
-      iex> now = DateTime.utc_now()
-      iex> jd = Astro.Time.to_julian_date(now)
-      iex> et = Astro.Time.day2sec(jd)
-      iex> Astro.Ephemeris.spkgeo(399, et, "J2000", 0)
-      {:ok, [x, y, z, dx, dy, dz], lt}
+      iex> {:ok, state, lt} = Astro.Ephemeris.spkgeo(399, 0.0, "J2000", 0)
+      iex> length(state)
+      6
+      iex> is_float(lt)
+      true
 
   More info at
   https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/spkgeo_c

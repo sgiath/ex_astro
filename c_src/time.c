@@ -1,9 +1,34 @@
 #include "utils.h"
 
+static bool
+erfa_status_ok(int status)
+{
+  return status == 0;
+}
+
+static bool
+erfa_status_ok_or_dubious_year(int status)
+{
+  return status == 0 || status == 1;
+}
+
+static ERL_NIF_TERM
+make_julian_date(ErlNifEnv *env, double jd1, double jd2)
+{
+  return enif_make_tuple2(env, enif_make_double(env, jd1), enif_make_double(env, jd2));
+}
+
+static double
+topocentric_tdb_minus_tt(double jd1, double jd2, double ut, double elong, double u, double v)
+{
+  return eraDtdb(jd1, jd2, ut, elong, u, v);
+}
+
 static ERL_NIF_TERM
 dtf2d(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
   int iy, im, id, ihr, imn;
+  int status;
   double sec, d1, d2;
 
   if (!enif_get_int(env, argv[0], &iy) ||
@@ -14,195 +39,214 @@ dtf2d(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
       !enif_get_double(env, argv[5], &sec))
     return enif_make_badarg(env);
 
-  eraDtf2d("UTC", iy, im, id, ihr, imn, sec, &d1, &d2);
+  status = eraDtf2d("UTC", iy, im, id, ihr, imn, sec, &d1, &d2);
+  if (!erfa_status_ok_or_dubious_year(status))
+    return enif_make_badarg(env);
 
-  // check for any errors
-  if (failed_c())
-    return handle_error(env);
-
-  return enif_make_double(env, d1 + d2);
+  return make_julian_date(env, d1, d2);
 }
 
 static ERL_NIF_TERM
 utc2tai(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
-  double utc, tai1, tai2;
-  if (!enif_get_double(env, argv[0], &utc))
+  int status;
+  double utc1, utc2, tai1, tai2;
+  if (!enif_get_double(env, argv[0], &utc1) ||
+      !enif_get_double(env, argv[1], &utc2))
     return enif_make_badarg(env);
-  eraUtctai(j2000_c(), utc - j2000_c(), &tai1, &tai2);
 
-  // check for any errors
-  if (failed_c())
-    return handle_error(env);
+  status = eraUtctai(utc1, utc2, &tai1, &tai2);
+  if (!erfa_status_ok_or_dubious_year(status))
+    return enif_make_badarg(env);
 
-  return enif_make_double(env, tai1 + tai2);
+  return make_julian_date(env, tai1, tai2);
 }
 
 static ERL_NIF_TERM
 tai2tt(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
-  double tai, tt1, tt2;
-  if (!enif_get_double(env, argv[0], &tai))
+  int status;
+  double tai1, tai2, tt1, tt2;
+  if (!enif_get_double(env, argv[0], &tai1) ||
+      !enif_get_double(env, argv[1], &tai2))
     return enif_make_badarg(env);
-  eraTaitt(j2000_c(), tai - j2000_c(), &tt1, &tt2);
 
-  // check for any errors
-  if (failed_c())
-    return handle_error(env);
+  status = eraTaitt(tai1, tai2, &tt1, &tt2);
+  if (!erfa_status_ok(status))
+    return enif_make_badarg(env);
 
-  return enif_make_double(env, tt1 + tt2);
+  return make_julian_date(env, tt1, tt2);
 }
 
 static ERL_NIF_TERM
 tai2utc(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
-  double tai, utc1, utc2;
-  if (!enif_get_double(env, argv[0], &tai))
+  int status;
+  double tai1, tai2, utc1, utc2;
+  if (!enif_get_double(env, argv[0], &tai1) ||
+      !enif_get_double(env, argv[1], &tai2))
     return enif_make_badarg(env);
-  eraTaiutc(j2000_c(), tai - j2000_c(), &utc1, &utc2);
 
-  // check for any errors
-  if (failed_c())
-    return handle_error(env);
+  status = eraTaiutc(tai1, tai2, &utc1, &utc2);
+  if (!erfa_status_ok_or_dubious_year(status))
+    return enif_make_badarg(env);
 
-  return enif_make_double(env, utc1 + utc2);
+  return make_julian_date(env, utc1, utc2);
 }
 
 static ERL_NIF_TERM
 tt2tai(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
-  double tt, tai1, tai2;
-  if (!enif_get_double(env, argv[0], &tt))
+  int status;
+  double tt1, tt2, tai1, tai2;
+  if (!enif_get_double(env, argv[0], &tt1) ||
+      !enif_get_double(env, argv[1], &tt2))
     return enif_make_badarg(env);
-  eraTttai(j2000_c(), tt - j2000_c(), &tai1, &tai2);
 
-  // check for any errors
-  if (failed_c())
-    return handle_error(env);
+  status = eraTttai(tt1, tt2, &tai1, &tai2);
+  if (!erfa_status_ok(status))
+    return enif_make_badarg(env);
 
-  return enif_make_double(env, tai1 + tai2);
+  return make_julian_date(env, tai1, tai2);
 }
 
 static ERL_NIF_TERM
 tt2tcg(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
-  double tt, tcg1, tcg2;
-  if (!enif_get_double(env, argv[0], &tt))
+  int status;
+  double tt1, tt2, tcg1, tcg2;
+  if (!enif_get_double(env, argv[0], &tt1) ||
+      !enif_get_double(env, argv[1], &tt2))
     return enif_make_badarg(env);
-  eraTttcg(j2000_c(), tt - j2000_c(), &tcg1, &tcg2);
 
-  // check for any errors
-  if (failed_c())
-    return handle_error(env);
+  status = eraTttcg(tt1, tt2, &tcg1, &tcg2);
+  if (!erfa_status_ok(status))
+    return enif_make_badarg(env);
 
-  return enif_make_double(env, tcg1 + tcg2);
+  return make_julian_date(env, tcg1, tcg2);
 }
 
 static ERL_NIF_TERM
 tt2tdb(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
-  double tt, dtr, g, tdb1, tdb2;
-  if (!enif_get_double(env, argv[0], &tt))
+  int status;
+  double tt1, tt2, ut, elong, u, v, dtr, tdb1, tdb2;
+  if (!enif_get_double(env, argv[0], &tt1) ||
+      !enif_get_double(env, argv[1], &tt2) ||
+      !enif_get_double(env, argv[2], &ut) ||
+      !enif_get_double(env, argv[3], &elong) ||
+      !enif_get_double(env, argv[4], &u) ||
+      !enif_get_double(env, argv[5], &v))
     return enif_make_badarg(env);
 
-  // calculation from:
-  // https://www.stjarnhimlen.se/comp/time.html
-  // https://lweb.cfa.harvard.edu/~jzhao/times.html#TDB
-  g = 357.53 + 0.9856003 * (tt - j2000_c());
-  dtr = 0.001658 * sin(g) + 0.000014 * sin(2 * g);
+  dtr = topocentric_tdb_minus_tt(tt1, tt2, ut, elong, u, v);
 
-  eraTttdb(j2000_c(), tt - j2000_c(), dtr, &tdb1, &tdb2);
+  status = eraTttdb(tt1, tt2, dtr, &tdb1, &tdb2);
+  if (!erfa_status_ok(status))
+    return enif_make_badarg(env);
 
-  // check for any errors
-  if (failed_c())
-    return handle_error(env);
+  dtr = topocentric_tdb_minus_tt(tdb1, tdb2, ut, elong, u, v);
 
-  return enif_make_double(env, tdb1 + tdb2);
+  status = eraTttdb(tt1, tt2, dtr, &tdb1, &tdb2);
+  if (!erfa_status_ok(status))
+    return enif_make_badarg(env);
+
+  return make_julian_date(env, tdb1, tdb2);
 }
 
 static ERL_NIF_TERM
 tcg2tt(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
-  double tcg, tt1, tt2;
-  if (!enif_get_double(env, argv[0], &tcg))
+  int status;
+  double tcg1, tcg2, tt1, tt2;
+  if (!enif_get_double(env, argv[0], &tcg1) ||
+      !enif_get_double(env, argv[1], &tcg2))
     return enif_make_badarg(env);
-  eraTcgtt(j2000_c(), tcg - j2000_c(), &tt1, &tt2);
 
-  // check for any errors
-  if (failed_c())
-    return handle_error(env);
+  status = eraTcgtt(tcg1, tcg2, &tt1, &tt2);
+  if (!erfa_status_ok(status))
+    return enif_make_badarg(env);
 
-  return enif_make_double(env, tt1 + tt2);
+  return make_julian_date(env, tt1, tt2);
 }
 
 static ERL_NIF_TERM
 tdb2tt(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
-  double tdb, dtr, g, tt1, tt2;
-  if (!enif_get_double(env, argv[0], &tdb))
+  int status;
+  double tdb1, tdb2, ut, elong, u, v, dtr, tt1, tt2;
+  if (!enif_get_double(env, argv[0], &tdb1) ||
+      !enif_get_double(env, argv[1], &tdb2) ||
+      !enif_get_double(env, argv[2], &ut) ||
+      !enif_get_double(env, argv[3], &elong) ||
+      !enif_get_double(env, argv[4], &u) ||
+      !enif_get_double(env, argv[5], &v))
     return enif_make_badarg(env);
 
-  // calculation from:
-  // https://www.stjarnhimlen.se/comp/time.html
-  // https://lweb.cfa.harvard.edu/~jzhao/times.html#TDB
-  g = 357.53 + 0.9856003 * (tdb - j2000_c());
-  dtr = 0.001658 * sin(g) + 0.000014 * sin(2 * g);
+  dtr = topocentric_tdb_minus_tt(tdb1, tdb2, ut, elong, u, v);
 
-  eraTdbtt(j2000_c(), tdb - j2000_c(), dtr, &tt1, &tt2);
+  status = eraTdbtt(tdb1, tdb2, dtr, &tt1, &tt2);
+  if (!erfa_status_ok(status))
+    return enif_make_badarg(env);
 
-  // check for any errors
-  if (failed_c())
-    return handle_error(env);
+  dtr = topocentric_tdb_minus_tt(tt1, tt2, ut, elong, u, v);
 
-  return enif_make_double(env, tt1 + tt2);
+  status = eraTdbtt(tdb1, tdb2, dtr, &tt1, &tt2);
+  if (!erfa_status_ok(status))
+    return enif_make_badarg(env);
+
+  return make_julian_date(env, tt1, tt2);
 }
 
 static ERL_NIF_TERM
 tdb2tcb(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
-  double tdb, tcb1, tcb2;
-  if (!enif_get_double(env, argv[0], &tdb))
+  int status;
+  double tdb1, tdb2, tcb1, tcb2;
+  if (!enif_get_double(env, argv[0], &tdb1) ||
+      !enif_get_double(env, argv[1], &tdb2))
     return enif_make_badarg(env);
-  eraTdbtcb(j2000_c(), tdb - j2000_c(), &tcb1, &tcb2);
 
-  // check for any errors
-  if (failed_c())
-    return handle_error(env);
+  status = eraTdbtcb(tdb1, tdb2, &tcb1, &tcb2);
+  if (!erfa_status_ok(status))
+    return enif_make_badarg(env);
 
-  return enif_make_double(env, tcb1 + tcb2);
+  return make_julian_date(env, tcb1, tcb2);
 }
 
 static ERL_NIF_TERM
 tcb2tdb(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
-  double tcb, tdb1, tdb2;
-  if (!enif_get_double(env, argv[0], &tcb))
+  int status;
+  double tcb1, tcb2, tdb1, tdb2;
+  if (!enif_get_double(env, argv[0], &tcb1) ||
+      !enif_get_double(env, argv[1], &tcb2))
     return enif_make_badarg(env);
-  eraTcbtdb(j2000_c(), tcb - j2000_c(), &tdb1, &tdb2);
 
-  // check for any errors
-  if (failed_c())
-    return handle_error(env);
+  status = eraTcbtdb(tcb1, tcb2, &tdb1, &tdb2);
+  if (!erfa_status_ok(status))
+    return enif_make_badarg(env);
 
-  return enif_make_double(env, tdb1 + tdb2);
+  return make_julian_date(env, tdb1, tdb2);
 }
 
 static ERL_NIF_TERM
 jd2dt(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
-  double jd, fd;
+  int status;
+  double jd1, jd2, fd;
   int iy, im, id, ihmsf[4];
   char sign = '+';
 
-  if (!enif_get_double(env, argv[0], &jd))
+  if (!enif_get_double(env, argv[0], &jd1) ||
+      !enif_get_double(env, argv[1], &jd2))
     return enif_make_badarg(env);
 
-  eraJd2cal(j2000_c(), jd - j2000_c(), &iy, &im, &id, &fd);
-  eraD2tf(6, fd, &sign, ihmsf);
+  status = eraJd2cal(jd1, jd2, &iy, &im, &id, &fd);
+  if (!erfa_status_ok(status))
+    return enif_make_badarg(env);
 
-  // check for any errors
-  if (failed_c())
-    return handle_error(env);
+  eraD2tf(6, fd, &sign, ihmsf);
 
   return enif_make_tuple7(
       env,
@@ -219,58 +263,95 @@ static ERL_NIF_TERM
 str2et(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
   SpiceDouble et;
-  SpiceChar *timstr;
+  SpiceChar *timstr = NULL;
+  ERL_NIF_TERM result;
 
   if (!load_string(env, argv[0], &timstr))
-    return enif_make_badarg(env);
+  {
+    result = enif_make_badarg(env);
+    goto cleanup;
+  }
 
   // convert to TDB (ET)
   str2et_c(timstr, &et);
 
   // check for any errors
   if (failed_c())
-    return handle_error(env);
+  {
+    result = handle_error(env);
+    goto cleanup;
+  }
 
-  return enif_make_double(env, et);
+  result = enif_make_double(env, et);
+
+cleanup:
+  free_string(timstr);
+
+  return result;
 }
 
 static ERL_NIF_TERM
 utc2et(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
   double et;
-  char *utcstr;
+  char *utcstr = NULL;
+  ERL_NIF_TERM result;
 
   if (!load_string(env, argv[0], &utcstr))
-    return enif_make_badarg(env);
+  {
+    result = enif_make_badarg(env);
+    goto cleanup;
+  }
 
   // convert to TDB (ET)
   utc2et_c(utcstr, &et);
 
   // check for any errors
   if (failed_c())
-    return handle_error(env);
+  {
+    result = handle_error(env);
+    goto cleanup;
+  }
 
-  return enif_make_double(env, et);
+  result = enif_make_double(env, et);
+
+cleanup:
+  free_string(utcstr);
+
+  return result;
 }
 
 static ERL_NIF_TERM
 unitim(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
   SpiceDouble epoch;
-  SpiceChar *insys, *outsys;
+  SpiceChar *insys = NULL, *outsys = NULL;
+  ERL_NIF_TERM result;
 
   if (!enif_get_double(env, argv[0], &epoch) ||
       !load_string(env, argv[1], &insys) ||
       !load_string(env, argv[2], &outsys))
-    return enif_make_badarg(env);
+  {
+    result = enif_make_badarg(env);
+    goto cleanup;
+  }
 
-  SpiceDouble result = unitim_c(epoch, insys, outsys);
+  SpiceDouble converted_epoch = unitim_c(epoch, insys, outsys);
 
   // check for any errors
   if (failed_c())
-    return handle_error(env);
+  {
+    result = handle_error(env);
+    goto cleanup;
+  }
 
-  return enif_make_double(env, result);
+  result = enif_make_double(env, converted_epoch);
+
+cleanup:
+  free_string(insys);
+  free_string(outsys);
+
+  return result;
 }
 
 static ERL_NIF_TERM
@@ -280,37 +361,38 @@ sec2day(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
   if (!enif_get_double(env, argv[0], &j_sec))
     return enif_make_badarg(env);
 
-  return enif_make_double(env, (j_sec / spd_c()) + j2000_c());
+  return make_julian_date(env, j2000_c(), j_sec / spd_c());
 }
 
 static ERL_NIF_TERM
 day2sec(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
-  double j_day;
-  if (!enif_get_double(env, argv[0], &j_day))
+  double jd1, jd2;
+  if (!enif_get_double(env, argv[0], &jd1) ||
+      !enif_get_double(env, argv[1], &jd2))
     return enif_make_badarg(env);
 
-  return enif_make_double(env, (j_day - j2000_c()) * spd_c());
+  return enif_make_double(env, ((jd1 - j2000_c()) + jd2) * spd_c());
 }
 
 static ErlNifFunc nif_funcs[] = {
     {"dtf2d", 6, dtf2d},
-    {"utc2tai", 1, utc2tai},
-    {"tai2tt", 1, tai2tt},
-    {"tai2utc", 1, tai2utc},
-    {"tt2tai", 1, tt2tai},
-    {"tt2tcg", 1, tt2tcg},
-    {"tt2tdb", 1, tt2tdb},
-    {"tcg2tt", 1, tcg2tt},
-    {"tdb2tt", 1, tdb2tt},
-    {"tdb2tcb", 1, tdb2tcb},
-    {"tcb2tdb", 1, tcb2tdb},
-    {"jd2dt", 1, jd2dt},
+    {"utc2tai", 2, utc2tai},
+    {"tai2tt", 2, tai2tt},
+    {"tai2utc", 2, tai2utc},
+    {"tt2tai", 2, tt2tai},
+    {"tt2tcg", 2, tt2tcg},
+    {"tt2tdb", 6, tt2tdb},
+    {"tcg2tt", 2, tcg2tt},
+    {"tdb2tt", 6, tdb2tt},
+    {"tdb2tcb", 2, tdb2tcb},
+    {"tcb2tdb", 2, tcb2tdb},
+    {"jd2dt", 2, jd2dt},
     {"str2et", 1, str2et},
     {"utc2et", 1, utc2et},
     {"unitim", 3, unitim},
     {"sec2day", 1, sec2day},
-    {"day2sec", 1, day2sec},
+    {"day2sec", 2, day2sec},
 };
 
-ERL_NIF_INIT(Elixir.Astro.Time, nif_funcs, &load, NULL, &upgrade, &unload)
+ERL_NIF_INIT(Elixir.Astro.Time.NIF, nif_funcs, &load, NULL, &upgrade, &unload)

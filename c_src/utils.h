@@ -1,3 +1,5 @@
+#include <stdlib.h>
+#include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
 #include <erl_nif.h>
@@ -13,10 +15,20 @@ load_string(ErlNifEnv *env, ERL_NIF_TERM arg, char **result)
     return false;
 
   *result = malloc(sizeof(char) * (bin.size + 1));
+  if (*result == NULL)
+    return false;
+
   memcpy(*result, bin.data, bin.size);
   (*result)[bin.size] = '\0';
 
   return true;
+}
+
+static void
+free_string(char *value)
+{
+  if (value != NULL)
+    free(value);
 }
 
 static bool
@@ -26,10 +38,9 @@ load_list(ErlNifEnv *env, ERL_NIF_TERM arg, size_t l, double *result)
   if (!enif_get_list_length(env, arg, &len) || len != l)
     return false;
 
-  result = enif_alloc(len * sizeof(double));
   ERL_NIF_TERM head, tail = arg;
 
-  for (int i = 0; i < len; i++)
+  for (unsigned int i = 0; i < len; i++)
   {
     if (!enif_get_list_cell(env, tail, &head, &tail) ||
         !enif_get_double(env, head, &result[i]))
@@ -108,11 +119,12 @@ ok_result2(ErlNifEnv *env, ERL_NIF_TERM r1, ERL_NIF_TERM r2)
 static int
 load(ErlNifEnv *env, void **priv, ERL_NIF_TERM load_info)
 {
+  SpiceChar error[1841];
   errdev_c("SET", 0, "NULL");
   errprt_c("SET", 0, "ALL");
   erract_c("SET", 0, "RETURN");
 
-  SpiceChar *path;
+  SpiceChar *path = NULL;
   ERL_NIF_TERM head, tail = load_info;
 
   while (enif_get_list_cell(env, tail, &head, &tail))
@@ -121,7 +133,18 @@ load(ErlNifEnv *env, void **priv, ERL_NIF_TERM load_info)
       return 1;
 
     furnsh_c(path);
-    free(path);
+
+    if (failed_c())
+    {
+      getmsg_c("LONG", 1840, error);
+      reset_c();
+      fprintf(stderr, "Failed to load SPICE kernel '%s': %s\n", path, error);
+      free_string(path);
+      return 1;
+    }
+
+    free_string(path);
+    path = NULL;
   }
 
   return 0;

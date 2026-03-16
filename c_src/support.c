@@ -27,10 +27,14 @@ bodc2n(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 static ERL_NIF_TERM
 bodn2c(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
-  SpiceChar *name;
+  SpiceChar *name = NULL;
+  ERL_NIF_TERM result;
 
   if (!load_string(env, argv[0], &name))
-    return enif_make_badarg(env);
+  {
+    result = enif_make_badarg(env);
+    goto cleanup;
+  }
 
   SpiceInt code;
   SpiceBoolean found;
@@ -39,51 +43,78 @@ bodn2c(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 
   // check for any errors
   if (failed_c())
-    return handle_error(env);
+  {
+    result = handle_error(env);
+    goto cleanup;
+  }
 
   // return error if body was not found
   if (!found)
-    return error_result(env, "body not found");
+  {
+    result = error_result(env, "body not found");
+    goto cleanup;
+  }
 
   // return OK tuple
-  return ok_result(env, enif_make_int(env, code));
+  result = ok_result(env, enif_make_int(env, code));
+
+cleanup:
+  free_string(name);
+
+  return result;
 }
 
 static ERL_NIF_TERM
 spkobj(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
-  SpiceChar *file;
+  SpiceChar *file = NULL;
   SPICEINT_CELL(ids, 1000);
+  ERL_NIF_TERM result;
+  ERL_NIF_TERM erl_ids[1000];
 
   if (!load_string(env, argv[0], &file))
-    return enif_make_badarg(env);
+  {
+    result = enif_make_badarg(env);
+    goto cleanup;
+  }
 
   spkobj_c(file, &ids);
 
   // check for any errors
   if (failed_c())
-    return handle_error(env);
+  {
+    result = handle_error(env);
+    goto cleanup;
+  }
 
   SpiceInt length = card_c(&ids);
-  ERL_NIF_TERM erl_ids[length];
 
   for (int i = 0; i < length; i++)
   {
     erl_ids[i] = enif_make_int(env, SPICE_CELL_ELEM_I(&ids, i));
   }
 
-  return ok_result(env, enif_make_list_from_array(env, erl_ids, length));
+  result = ok_result(env, enif_make_list_from_array(env, erl_ids, length));
+
+cleanup:
+  free_string(file);
+
+  return result;
 }
 
 static ERL_NIF_TERM
 bodvcd(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
   SpiceInt code;
-  SpiceChar *item;
+  SpiceChar *item = NULL;
+  ERL_NIF_TERM result;
 
   if (!enif_get_int(env, argv[0], &code) ||
       !load_string(env, argv[1], &item))
-    return enif_make_badarg(env);
+  {
+    result = enif_make_badarg(env);
+    goto cleanup;
+  }
 
   SpiceInt dim;
   SpiceDouble values[16];
@@ -92,19 +123,31 @@ bodvcd(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 
   // check for any errors
   if (failed_c())
-    return handle_error(env);
+  {
+    result = handle_error(env);
+    goto cleanup;
+  }
 
-  return ok_result(env, make_list(env, values, dim));
+  result = ok_result(env, make_list(env, values, dim));
+
+cleanup:
+  free_string(item);
+
+  return result;
 }
 
 static ERL_NIF_TERM
 bodvrd(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
-  SpiceChar *name, *item;
+  SpiceChar *name = NULL, *item = NULL;
+  ERL_NIF_TERM result;
 
   if (!load_string(env, argv[0], &name) ||
       !load_string(env, argv[1], &item))
-    return enif_make_badarg(env);
+  {
+    result = enif_make_badarg(env);
+    goto cleanup;
+  }
 
   SpiceInt dim;
   SpiceDouble values[16];
@@ -113,9 +156,18 @@ bodvrd(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 
   // check for any errors
   if (failed_c())
-    return handle_error(env);
+  {
+    result = handle_error(env);
+    goto cleanup;
+  }
 
-  return ok_result(env, make_list(env, values, dim));
+  result = ok_result(env, make_list(env, values, dim));
+
+cleanup:
+  free_string(name);
+  free_string(item);
+
+  return result;
 }
 static ErlNifFunc nif_funcs[] = {
     {"bodc2n", 1, bodc2n},

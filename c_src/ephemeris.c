@@ -4,15 +4,19 @@ static ERL_NIF_TERM
 spkezr(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
   // inputs
-  SpiceChar *target, *reference_frame, *abcorr, *observer;
+  SpiceChar *target = NULL, *reference_frame = NULL, *abcorr = NULL, *observer = NULL;
   SpiceDouble et;
+  ERL_NIF_TERM result;
 
   if (!load_string(env, argv[0], &target) ||
       !enif_get_double(env, argv[1], &et) ||
       !load_string(env, argv[2], &reference_frame) ||
       !load_string(env, argv[3], &abcorr) ||
       !load_string(env, argv[4], &observer))
-    return enif_make_badarg(env);
+  {
+    result = enif_make_badarg(env);
+    goto cleanup;
+  }
 
   // output
   SpiceDouble state[6];
@@ -23,9 +27,20 @@ spkezr(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 
   // check for any errors
   if (failed_c())
-    return handle_error(env);
+  {
+    result = handle_error(env);
+    goto cleanup;
+  }
 
-  return ok_result2(env, make_list(env, state, 6), enif_make_double(env, lt));
+  result = ok_result2(env, make_list(env, state, 6), enif_make_double(env, lt));
+
+cleanup:
+  free_string(target);
+  free_string(reference_frame);
+  free_string(abcorr);
+  free_string(observer);
+
+  return result;
 }
 
 static ERL_NIF_TERM
@@ -34,14 +49,18 @@ spkez(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
   // inputs
   SpiceDouble et;
   SpiceInt target, observer;
-  SpiceChar *reference_frame, *abcorr;
+  SpiceChar *reference_frame = NULL, *abcorr = NULL;
+  ERL_NIF_TERM result;
 
   if (!enif_get_int(env, argv[0], &target) ||
       !enif_get_double(env, argv[1], &et) ||
       !load_string(env, argv[2], &reference_frame) ||
       !load_string(env, argv[3], &abcorr) ||
       !enif_get_int(env, argv[4], &observer))
-    return enif_make_badarg(env);
+  {
+    result = enif_make_badarg(env);
+    goto cleanup;
+  }
 
   // output
   SpiceDouble state[6];
@@ -52,9 +71,18 @@ spkez(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 
   // check for any errors
   if (failed_c())
-    return handle_error(env);
+  {
+    result = handle_error(env);
+    goto cleanup;
+  }
 
-  return ok_result2(env, make_list(env, state, 6), enif_make_double(env, lt));
+  result = ok_result2(env, make_list(env, state, 6), enif_make_double(env, lt));
+
+cleanup:
+  free_string(reference_frame);
+  free_string(abcorr);
+
+  return result;
 }
 
 static ERL_NIF_TERM
@@ -63,13 +91,17 @@ spkgeo(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
   // inputs
   SpiceDouble et;
   SpiceInt target, observer;
-  SpiceChar *reference_frame;
+  SpiceChar *reference_frame = NULL;
+  ERL_NIF_TERM result;
 
   if (!enif_get_int(env, argv[0], &target) ||
       !enif_get_double(env, argv[1], &et) ||
       !load_string(env, argv[2], &reference_frame) ||
       !enif_get_int(env, argv[3], &observer))
-    return enif_make_badarg(env);
+  {
+    result = enif_make_badarg(env);
+    goto cleanup;
+  }
 
   // output
   SpiceDouble state[6];
@@ -80,15 +112,23 @@ spkgeo(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 
   // check for any errors
   if (failed_c())
-    return handle_error(env);
+  {
+    result = handle_error(env);
+    goto cleanup;
+  }
 
-  return ok_result2(env, make_list(env, state, 6), enif_make_double(env, lt));
+  result = ok_result2(env, make_list(env, state, 6), enif_make_double(env, lt));
+
+cleanup:
+  free_string(reference_frame);
+
+  return result;
 }
 
 static ERL_NIF_TERM
 oscelt(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
-  SpiceDouble *state=NULL;
+  SpiceDouble state[6];
   SpiceDouble et;
   SpiceDouble mu;
   SpiceDouble elts[8];
@@ -111,7 +151,7 @@ oscelt(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 static ERL_NIF_TERM
 conics(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
-  SpiceDouble *elts=NULL;
+  SpiceDouble elts[8];
   SpiceDouble et;
   SpiceDouble state[6];
 
