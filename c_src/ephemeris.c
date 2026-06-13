@@ -212,10 +212,22 @@ conics(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
   return ok_result(env, make_list(env, state, 6));
 }
 
+/*
+ * Scheduler policy:
+ * - spkezr/spkez/spkgeo can run longer than a normal scheduler budget while
+ *   resolving states from loaded, file-backed SPICE ephemeris kernels, so they
+ *   run as dirty CPU jobs.
+ * - oscelt/conics are bounded numeric conversions over caller-provided arrays
+ *   and remain normal scheduler NIFs.
+ *
+ * All CSPICE calls, dirty or normal, keep using the mutex/error-reset contract
+ * in utils.h. NIF load/unload callbacks can still perform kernel I/O outside
+ * ErlNifFunc dirty scheduling.
+ */
 static ErlNifFunc nif_funcs[] = {
-    {"spkezr", 5, spkezr},
-    {"spkez", 5, spkez},
-    {"spkgeo", 4, spkgeo},
+    {"spkezr", 5, spkezr, ERL_NIF_DIRTY_JOB_CPU_BOUND},
+    {"spkez", 5, spkez, ERL_NIF_DIRTY_JOB_CPU_BOUND},
+    {"spkgeo", 4, spkgeo, ERL_NIF_DIRTY_JOB_CPU_BOUND},
     {"oscelt", 3, oscelt},
     {"conics", 2, conics},
 };

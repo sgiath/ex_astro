@@ -436,6 +436,20 @@ day2sec(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
   return enif_make_double(env, ((jd1 - j2000) + jd2) * spd);
 }
 
+/*
+ * Scheduler policy:
+ * - str2et/utc2et use CSPICE time parsers that can do non-trivial string
+ *   parsing and consult loaded time-kernel state, so they run as dirty CPU
+ *   jobs.
+ * - ERFA-only split-Julian-Date conversions are bounded numeric work and
+ *   remain normal scheduler NIFs.
+ * - unitim/sec2day/day2sec are short CSPICE scalar/constant conversions and
+ *   remain normal scheduler NIFs.
+ *
+ * All CSPICE calls, dirty or normal, keep using the mutex/error-reset contract
+ * in utils.h. NIF load/unload callbacks can still perform kernel I/O outside
+ * ErlNifFunc dirty scheduling.
+ */
 static ErlNifFunc nif_funcs[] = {
     {"dtf2d", 6, dtf2d},
     {"utc2tai", 2, utc2tai},
@@ -449,8 +463,8 @@ static ErlNifFunc nif_funcs[] = {
     {"tdb2tcb", 2, tdb2tcb},
     {"tcb2tdb", 2, tcb2tdb},
     {"jd2dt", 2, jd2dt},
-    {"str2et", 1, str2et},
-    {"utc2et", 1, utc2et},
+    {"str2et", 1, str2et, ERL_NIF_DIRTY_JOB_CPU_BOUND},
+    {"utc2et", 1, utc2et, ERL_NIF_DIRTY_JOB_CPU_BOUND},
     {"unitim", 3, unitim},
     {"sec2day", 1, sec2day},
     {"day2sec", 2, day2sec},

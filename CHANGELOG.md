@@ -3,6 +3,7 @@
 ## Unreleased
 
 - serialize CSPICE-backed NIF access to prevent concurrent kernel/error-state races
+- run blocking SPICE-backed NIFs on dirty schedulers to protect BEAM scheduler responsiveness
 
 ## v0.2.2 (2024-10-01)
 

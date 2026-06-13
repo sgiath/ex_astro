@@ -224,10 +224,21 @@ cleanup:
 
   return result;
 }
+/*
+ * Scheduler policy:
+ * - spkobj opens and inspects the SPK file path supplied by the caller, so it
+ *   runs as a dirty IO job.
+ * - body-name/ID and kernel-pool value lookups are short CSPICE table/pool
+ *   lookups and remain normal scheduler NIFs.
+ *
+ * All CSPICE calls, dirty or normal, keep using the mutex/error-reset contract
+ * in utils.h. NIF load/unload callbacks can still perform kernel I/O outside
+ * ErlNifFunc dirty scheduling.
+ */
 static ErlNifFunc nif_funcs[] = {
     {"bodc2n", 1, bodc2n},
     {"bodn2c", 1, bodn2c},
-    {"spkobj", 1, spkobj},
+    {"spkobj", 1, spkobj, ERL_NIF_DIRTY_JOB_IO_BOUND},
     {"bodvcd", 2, bodvcd},
     {"bodvrd", 2, bodvrd},
 };

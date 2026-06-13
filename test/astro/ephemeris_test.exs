@@ -3,6 +3,21 @@ defmodule Astro.EphemerisTest do
 
   doctest Astro.Ephemeris
 
+  test "dirty scheduled state retrieval preserves success and error return shapes" do
+    assert {:ok, state, light_time} =
+             Astro.Ephemeris.spkezr("EARTH", 0.0, "J2000", "NONE", "SSB")
+
+    assert length(state) == 6
+    assert Enum.all?(state, &is_float/1)
+    assert is_float(light_time)
+
+    assert {:error, message} =
+             Astro.Ephemeris.spkezr("NOT_A_BODY", 0.0, "J2000", "NONE", "SSB")
+
+    assert is_binary(message)
+    assert message =~ "NOT_A_BODY"
+  end
+
   test "conics and oscelt accept fixed-size input lists" do
     mu = 398_600.435_436
     et = 60.0
