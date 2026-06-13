@@ -12,8 +12,8 @@
       perSystem =
         { pkgs, ... }:
         let
-          beamPackages = pkgs.beam_minimal.packages.erlang_28;
-          elixir = beamPackages.elixir_1_19;
+          beamPackages = pkgs.beam_minimal.packages.erlang_29;
+          elixir = beamPackages.elixir_1_20;
         in
         {
           devShells = {
@@ -27,6 +27,7 @@
               ];
 
               env = {
+                MIX_OS_DEPS_COMPILE_PARTITION_COUNT = "16";
                 ERL_AFLAGS = "+pc unicode -kernel shell_history enabled";
                 ELIXIR_ERL_OPTIONS = "+fnu +sssdio 128";
               };

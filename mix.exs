@@ -43,10 +43,10 @@ defmodule Astro.MixProject do
       {:gnuplot, "~> 1.22"},
 
       # HTTP client to download kernels
-      {:req, "~> 0.5"},
+      {:req, "~> 0.6"},
 
       # C compilation
-      {:elixir_make, "~> 0.9", runtime: false},
+      {:elixir_make, "~> 0.10", runtime: false},
 
       # Development
       {:ex_check, "~> 0.16", only: [:dev], runtime: false},

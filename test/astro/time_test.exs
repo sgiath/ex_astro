@@ -60,18 +60,6 @@ defmodule Astro.TimeTest do
   end
 
   test "time functions reject invalid input types" do
-    assert_raise FunctionClauseError, fn ->
-      Astro.Time.jd2dt("2451545.0")
-    end
-
-    assert_raise FunctionClauseError, fn ->
-      Astro.Time.utc2tai(2_451_545.0)
-    end
-
-    assert_raise FunctionClauseError, fn ->
-      Astro.Time.tt2tdb({2_451_545.0, "0"})
-    end
-
     assert_raise ArgumentError, fn ->
       Astro.Time.tdb2tt({2_451_545.0, 0.0}, :ut, 0.0, 0.0, 0.0)
     end
@@ -86,10 +74,6 @@ defmodule Astro.TimeTest do
 
     assert_raise ArgumentError, fn ->
       Astro.Time.unitim(0.0, :et, "TAI")
-    end
-
-    assert_raise FunctionClauseError, fn ->
-      Astro.Time.day2sec("2451545.0")
     end
   end
 

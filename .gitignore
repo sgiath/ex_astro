@@ -33,3 +33,5 @@ ex_astro-*.tar
 
 # generated C binaries
 /priv/*.so
+
+.env
