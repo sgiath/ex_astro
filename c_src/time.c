@@ -265,6 +265,7 @@ str2et(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
   SpiceDouble et;
   SpiceChar *timstr = NULL;
   ERL_NIF_TERM result;
+  SpiceChar error[CSPICE_ERROR_LENGTH];
 
   if (!load_string(env, argv[0], &timstr))
   {
@@ -272,16 +273,24 @@ str2et(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
     goto cleanup;
   }
 
+  if (!cspice_lock())
+  {
+    result = cspice_sync_error(env);
+    goto cleanup;
+  }
+
   // convert to TDB (ET)
   str2et_c(timstr, &et);
 
   // check for any errors
-  if (failed_c())
+  if (cspice_failed(error))
   {
-    result = handle_error(env);
+    cspice_unlock();
+    result = error_result(env, error);
     goto cleanup;
   }
 
+  cspice_unlock();
   result = enif_make_double(env, et);
 
 cleanup:
@@ -296,6 +305,7 @@ utc2et(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
   double et;
   char *utcstr = NULL;
   ERL_NIF_TERM result;
+  SpiceChar error[CSPICE_ERROR_LENGTH];
 
   if (!load_string(env, argv[0], &utcstr))
   {
@@ -303,16 +313,24 @@ utc2et(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
     goto cleanup;
   }
 
+  if (!cspice_lock())
+  {
+    result = cspice_sync_error(env);
+    goto cleanup;
+  }
+
   // convert to TDB (ET)
   utc2et_c(utcstr, &et);
 
   // check for any errors
-  if (failed_c())
+  if (cspice_failed(error))
   {
-    result = handle_error(env);
+    cspice_unlock();
+    result = error_result(env, error);
     goto cleanup;
   }
 
+  cspice_unlock();
   result = enif_make_double(env, et);
 
 cleanup:
@@ -327,6 +345,7 @@ unitim(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
   SpiceDouble epoch;
   SpiceChar *insys = NULL, *outsys = NULL;
   ERL_NIF_TERM result;
+  SpiceChar error[CSPICE_ERROR_LENGTH];
 
   if (!enif_get_double(env, argv[0], &epoch) ||
       !load_string(env, argv[1], &insys) ||
@@ -336,15 +355,23 @@ unitim(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
     goto cleanup;
   }
 
-  SpiceDouble converted_epoch = unitim_c(epoch, insys, outsys);
-
-  // check for any errors
-  if (failed_c())
+  if (!cspice_lock())
   {
-    result = handle_error(env);
+    result = cspice_sync_error(env);
     goto cleanup;
   }
 
+  SpiceDouble converted_epoch = unitim_c(epoch, insys, outsys);
+
+  // check for any errors
+  if (cspice_failed(error))
+  {
+    cspice_unlock();
+    result = error_result(env, error);
+    goto cleanup;
+  }
+
+  cspice_unlock();
   result = enif_make_double(env, converted_epoch);
 
 cleanup:
@@ -358,21 +385,55 @@ static ERL_NIF_TERM
 sec2day(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
   double j_sec;
+  double j2000;
+  double spd;
+  SpiceChar error[CSPICE_ERROR_LENGTH];
+
   if (!enif_get_double(env, argv[0], &j_sec))
     return enif_make_badarg(env);
 
-  return make_julian_date(env, j2000_c(), j_sec / spd_c());
+  if (!cspice_lock())
+    return cspice_sync_error(env);
+
+  j2000 = j2000_c();
+  spd = spd_c();
+
+  if (cspice_failed(error))
+  {
+    cspice_unlock();
+    return error_result(env, error);
+  }
+
+  cspice_unlock();
+  return make_julian_date(env, j2000, j_sec / spd);
 }
 
 static ERL_NIF_TERM
 day2sec(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
   double jd1, jd2;
+  double j2000;
+  double spd;
+  SpiceChar error[CSPICE_ERROR_LENGTH];
+
   if (!enif_get_double(env, argv[0], &jd1) ||
       !enif_get_double(env, argv[1], &jd2))
     return enif_make_badarg(env);
 
-  return enif_make_double(env, ((jd1 - j2000_c()) + jd2) * spd_c());
+  if (!cspice_lock())
+    return cspice_sync_error(env);
+
+  j2000 = j2000_c();
+  spd = spd_c();
+
+  if (cspice_failed(error))
+  {
+    cspice_unlock();
+    return error_result(env, error);
+  }
+
+  cspice_unlock();
+  return enif_make_double(env, ((jd1 - j2000) + jd2) * spd);
 }
 
 static ErlNifFunc nif_funcs[] = {

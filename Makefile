@@ -17,6 +17,8 @@ CFLAGS += -fPIC -finline-functions -Wall -Wmissing-prototypes
 
 # C SPICE libraries
 CFLAGS += -I$(SPICE_SRC_DIR)/include
+# Keep each NIF bound to its own statically linked CSPICE copy and mutex.
+LDFLAGS += -Wl,-Bsymbolic
 LDFLAGS += -L$(SPICE_SRC_DIR)/lib -l:cspice.a -l:csupport.a
 
 # ERFA libraries

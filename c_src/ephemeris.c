@@ -21,17 +21,26 @@ spkezr(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
   // output
   SpiceDouble state[6];
   SpiceDouble lt;
+  SpiceChar error[CSPICE_ERROR_LENGTH];
+
+  if (!cspice_lock())
+  {
+    result = cspice_sync_error(env);
+    goto cleanup;
+  }
 
   // retrieve state vector at the time
   spkezr_c(target, et, reference_frame, abcorr, observer, state, &lt);
 
   // check for any errors
-  if (failed_c())
+  if (cspice_failed(error))
   {
-    result = handle_error(env);
+    cspice_unlock();
+    result = error_result(env, error);
     goto cleanup;
   }
 
+  cspice_unlock();
   result = ok_result2(env, make_list(env, state, 6), enif_make_double(env, lt));
 
 cleanup:
@@ -65,17 +74,26 @@ spkez(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
   // output
   SpiceDouble state[6];
   SpiceDouble lt;
+  SpiceChar error[CSPICE_ERROR_LENGTH];
+
+  if (!cspice_lock())
+  {
+    result = cspice_sync_error(env);
+    goto cleanup;
+  }
 
   // retrieve state vector at the time
   spkez_c(target, et, reference_frame, abcorr, observer, state, &lt);
 
   // check for any errors
-  if (failed_c())
+  if (cspice_failed(error))
   {
-    result = handle_error(env);
+    cspice_unlock();
+    result = error_result(env, error);
     goto cleanup;
   }
 
+  cspice_unlock();
   result = ok_result2(env, make_list(env, state, 6), enif_make_double(env, lt));
 
 cleanup:
@@ -106,17 +124,26 @@ spkgeo(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
   // output
   SpiceDouble state[6];
   SpiceDouble lt;
+  SpiceChar error[CSPICE_ERROR_LENGTH];
+
+  if (!cspice_lock())
+  {
+    result = cspice_sync_error(env);
+    goto cleanup;
+  }
 
   // retrieve state vector at the time
   spkgeo_c(target, et, reference_frame, observer, state, &lt);
 
   // check for any errors
-  if (failed_c())
+  if (cspice_failed(error))
   {
-    result = handle_error(env);
+    cspice_unlock();
+    result = error_result(env, error);
     goto cleanup;
   }
 
+  cspice_unlock();
   result = ok_result2(env, make_list(env, state, 6), enif_make_double(env, lt));
 
 cleanup:
@@ -132,19 +159,27 @@ oscelt(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
   SpiceDouble et;
   SpiceDouble mu;
   SpiceDouble elts[8];
+  SpiceChar error[CSPICE_ERROR_LENGTH];
 
   if (!load_list(env, argv[0], 6, state) ||
       !enif_get_double(env, argv[1], &et) ||
       !enif_get_double(env, argv[2], &mu))
     return enif_make_badarg(env);
 
+  if (!cspice_lock())
+    return cspice_sync_error(env);
+
   // retrieve state vector at the time
   oscelt_c(state, et, mu, elts);
 
   // check for any errors
-  if (failed_c())
-    return handle_error(env);
+  if (cspice_failed(error))
+  {
+    cspice_unlock();
+    return error_result(env, error);
+  }
 
+  cspice_unlock();
   return ok_result(env, make_list(env, elts, 8));
 }
 
@@ -154,18 +189,26 @@ conics(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
   SpiceDouble elts[8];
   SpiceDouble et;
   SpiceDouble state[6];
+  SpiceChar error[CSPICE_ERROR_LENGTH];
 
   if (!load_list(env, argv[0], 8, elts) ||
       !enif_get_double(env, argv[1], &et))
     return enif_make_badarg(env);
 
+  if (!cspice_lock())
+    return cspice_sync_error(env);
+
   // retrieve state vector at the time
   conics_c(elts, et, state);
 
   // check for any errors
-  if (failed_c())
-    return handle_error(env);
+  if (cspice_failed(error))
+  {
+    cspice_unlock();
+    return error_result(env, error);
+  }
 
+  cspice_unlock();
   return ok_result(env, make_list(env, state, 6));
 }
 
