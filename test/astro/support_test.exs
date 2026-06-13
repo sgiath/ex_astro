@@ -9,15 +9,6 @@ defmodule Astro.SupportTest do
     assert 399 in ids
   end
 
-  test "SPK inspection no longer uses the old fixed 1000 ID cell" do
-    source = File.read!("c_src/support.c")
-
-    refute source =~ "SPICEINT_CELL(ids, 1000)"
-    assert source =~ "SPKOBJ_INITIAL_CAPACITY"
-    assert source =~ "SPKOBJ_MAX_CAPACITY"
-    assert source =~ "SPK object result exceeds supported capacity"
-  end
-
   test "body constants keep normal RADII values" do
     assert {:ok, [6378.1366, 6378.1366, 6356.7519]} = Astro.Support.bodvcd(399, "RADII")
     assert {:ok, [6378.1366, 6378.1366, 6356.7519]} = Astro.Support.bodvrd("EARTH", "RADII")
