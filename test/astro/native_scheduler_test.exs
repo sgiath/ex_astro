@@ -51,6 +51,6 @@ defmodule Astro.NativeSchedulerTest do
   end
 
   defp assert_normal_nif(source, name, arity) do
-    assert source =~ ~r/\{"#{name}",\s*#{arity},\s*#{name}\}/
+    assert source =~ ~r/\{"#{name}",\s*#{arity},\s*#{name}(?:,\s*0)?\}/
   end
 end

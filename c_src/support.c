@@ -419,11 +419,11 @@ cleanup:
  * ErlNifFunc dirty scheduling.
  */
 static ErlNifFunc nif_funcs[] = {
-    {"bodc2n", 1, bodc2n},
-    {"bodn2c", 1, bodn2c},
+    {"bodc2n", 1, bodc2n, 0},
+    {"bodn2c", 1, bodn2c, 0},
     {"spkobj", 1, spkobj, ERL_NIF_DIRTY_JOB_IO_BOUND},
-    {"bodvcd", 2, bodvcd},
-    {"bodvrd", 2, bodvrd},
+    {"bodvcd", 2, bodvcd, 0},
+    {"bodvrd", 2, bodvrd, 0},
 };
 
 ERL_NIF_INIT(Elixir.Astro.Support, nif_funcs, &load, NULL, &upgrade, &unload)

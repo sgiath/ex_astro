@@ -479,23 +479,23 @@ day2sec(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
  * ErlNifFunc dirty scheduling.
  */
 static ErlNifFunc nif_funcs[] = {
-    {"dtf2d", 6, dtf2d},
-    {"utc2tai", 2, utc2tai},
-    {"tai2tt", 2, tai2tt},
-    {"tai2utc", 2, tai2utc},
-    {"tt2tai", 2, tt2tai},
-    {"tt2tcg", 2, tt2tcg},
-    {"tt2tdb", 6, tt2tdb},
-    {"tcg2tt", 2, tcg2tt},
-    {"tdb2tt", 6, tdb2tt},
-    {"tdb2tcb", 2, tdb2tcb},
-    {"tcb2tdb", 2, tcb2tdb},
-    {"jd2dt", 2, jd2dt},
+    {"dtf2d", 6, dtf2d, 0},
+    {"utc2tai", 2, utc2tai, 0},
+    {"tai2tt", 2, tai2tt, 0},
+    {"tai2utc", 2, tai2utc, 0},
+    {"tt2tai", 2, tt2tai, 0},
+    {"tt2tcg", 2, tt2tcg, 0},
+    {"tt2tdb", 6, tt2tdb, 0},
+    {"tcg2tt", 2, tcg2tt, 0},
+    {"tdb2tt", 6, tdb2tt, 0},
+    {"tdb2tcb", 2, tdb2tcb, 0},
+    {"tcb2tdb", 2, tcb2tdb, 0},
+    {"jd2dt", 2, jd2dt, 0},
     {"str2et", 1, str2et, ERL_NIF_DIRTY_JOB_CPU_BOUND},
     {"utc2et", 1, utc2et, ERL_NIF_DIRTY_JOB_CPU_BOUND},
-    {"unitim", 3, unitim},
-    {"sec2day", 1, sec2day},
-    {"day2sec", 2, day2sec},
+    {"unitim", 3, unitim, 0},
+    {"sec2day", 1, sec2day, 0},
+    {"day2sec", 2, day2sec, 0},
 };
 
 ERL_NIF_INIT(Elixir.Astro.Time.NIF, nif_funcs, &load, NULL, &upgrade, &unload)

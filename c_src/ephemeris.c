@@ -228,8 +228,8 @@ static ErlNifFunc nif_funcs[] = {
     {"spkezr", 5, spkezr, ERL_NIF_DIRTY_JOB_CPU_BOUND},
     {"spkez", 5, spkez, ERL_NIF_DIRTY_JOB_CPU_BOUND},
     {"spkgeo", 4, spkgeo, ERL_NIF_DIRTY_JOB_CPU_BOUND},
-    {"oscelt", 3, oscelt},
-    {"conics", 2, conics},
+    {"oscelt", 3, oscelt, 0},
+    {"conics", 2, conics, 0},
 };
 
 ERL_NIF_INIT(Elixir.Astro.Ephemeris, nif_funcs, &load, NULL, &upgrade, &unload)

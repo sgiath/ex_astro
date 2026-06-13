@@ -12,8 +12,15 @@ CC = gcc
 # Erlang headers (env variable comes from :elixir_make dependency)
 CFLAGS += -I$(ERTS_INCLUDE_DIR)
 
-# General C flags
-CFLAGS += -fPIC -finline-functions -Wall -Wmissing-prototypes
+# First-party C warning policy. Keep warnings focused on project-owned NIF
+# sources; vendored CSPICE is linked from its prebuilt archive below.
+CFLAGS += -fPIC -finline-functions
+CFLAGS += -Wall -Wextra -Wmissing-prototypes -Wstrict-prototypes -Wold-style-definition
+CFLAGS += -Wint-conversion -Wpointer-arith -Wcast-function-type -Wvla
+CFLAGS += -Walloc-size-larger-than=1048576
+CFLAGS += -Werror=implicit-function-declaration -Werror=incompatible-pointer-types -Werror=vla
+# NIF callbacks have fixed signatures; unused argc/priv fields are intentional.
+CFLAGS += -Wno-unused-parameter
 
 # C SPICE libraries
 CFLAGS += -I$(SPICE_SRC_DIR)/include
@@ -31,7 +38,7 @@ all: $(TARGET_DIR)/time.so $(TARGET_DIR)/ephemeris.so $(TARGET_DIR)/support.so
 
 $(TARGET_DIR)/%.so: $(SRC_DIR)/%.c $(SRC_DIR)/utils.h $(SPICE_SRC_DIR)/lib/cspice.a
 	@mkdir -p $(@D)
-	$(CC) $(CFLAGS) -shared -o $@ $^ $(LDFLAGS)
+	$(CC) $(CFLAGS) -shared -o $@ $< $(LDFLAGS)
 
 $(SPICE_SRC_DIR)/lib/cspice.a:
 	@rm -rf $(SPICE_SRC_DIR)

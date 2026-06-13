@@ -1,3 +1,16 @@
+#ifndef EX_ASTRO_UTILS_H
+#define EX_ASTRO_UTILS_H
+
+/*
+ * Shared NIF utility implementation.
+ *
+ * This header intentionally contains static helper definitions and static NIF
+ * lifecycle state. Each first-party NIF C file includes it once, giving every
+ * shared object its own CSPICE mutex/error/kernel ownership while keeping the
+ * public NIF modules independent. Do not move these helpers to external
+ * linkage without also redesigning that per-shared-object ownership model.
+ */
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
@@ -171,14 +184,19 @@ load_list(ErlNifEnv *env, ERL_NIF_TERM arg, size_t l, double *result)
 static ERL_NIF_TERM EX_ASTRO_UNUSED
 make_list(ErlNifEnv *env, double *list, size_t len)
 {
-  ERL_NIF_TERM result[len];
+  ERL_NIF_TERM result = enif_make_list(env, 0);
 
-  for (int i = 0; i < len; i++)
+  /*
+   * Build from the tail to avoid variable-length stack arrays. Existing
+   * callers pass fixed SPICE/ERFA output sizes, and this stays bounded by
+   * caller-visible list length instead of stack capacity.
+   */
+  for (size_t i = len; i > 0; i--)
   {
-    result[i] = enif_make_double(env, list[i]);
+    result = enif_make_list_cell(env, enif_make_double(env, list[i - 1]), result);
   }
 
-  return enif_make_list_from_array(env, result, len);
+  return result;
 }
 
 static ERL_NIF_TERM
@@ -345,3 +363,5 @@ unload(ErlNifEnv *env, void *priv)
   enif_mutex_destroy(cspice_mutex);
   cspice_mutex = NULL;
 }
+
+#endif

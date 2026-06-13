@@ -1,10 +1,11 @@
 ---
 id: TASK-004.06
 title: Clean up shared NIF utility hygiene
-status: To Do
-assignee: []
-created_date: "2026-06-13 13:35"
-updated_date: "2026-06-13 14:15"
+status: Done
+assignee:
+  - Codex
+created_date: '2026-06-13 13:35'
+updated_date: '2026-06-13 14:48'
 labels:
   - maintenance
   - native
@@ -14,10 +15,21 @@ dependencies:
 references:
   - c_src/utils.h
   - Makefile
+  - test/astro/native_scheduler_test.exs
 documentation:
   - c_src/utils.h
   - Makefile
   - AGENTS.md
+  - test/astro/native_hygiene_test.exs
+modified_files:
+  - CHANGELOG.md
+  - Makefile
+  - c_src/utils.h
+  - c_src/time.c
+  - c_src/ephemeris.c
+  - c_src/support.c
+  - test/astro/native_scheduler_test.exs
+  - test/astro/native_hygiene_test.exs
 parent_task_id: TASK-004
 priority: low
 ordinal: 10000
@@ -26,26 +38,21 @@ ordinal: 10000
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
-
 Improve maintainability of the shared native utility layer after string boundary behavior is clarified. The desired outcome is less fragile helper code and stricter compiler feedback for future NIF changes.
-
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
-
 <!-- AC:BEGIN -->
-
-- [ ] #1 Shared NIF helpers avoid unbounded variable-length stack arrays, or any remaining stack allocation is explicitly bounded, documented, and covered by reviewable checks.
-- [ ] #2 `utils.h` has normal include protection or shared utility code is split into a clear source/header structure without changing public NIF behavior.
-- [ ] #3 Native build warnings are tightened for first-party C code enough to catch common NIF prototype, signature, conversion, and allocation-size mistakes without persistent false positives.
-- [ ] #4 Representative native calls across time, support, and ephemeris modules still compile, load, and preserve their existing successful return shapes.
-- [ ] #5 Security review and code-adjacent documentation cover helper ownership, allocation bounds, build/process risks, logging, and residual compatibility tradeoffs.
+- [x] #1 Shared NIF helpers avoid unbounded variable-length stack arrays, or any remaining stack allocation is explicitly bounded, documented, and covered by reviewable checks.
+- [x] #2 `utils.h` has normal include protection or shared utility code is split into a clear source/header structure without changing public NIF behavior.
+- [x] #3 Native build warnings are tightened for first-party C code enough to catch common NIF prototype, signature, conversion, and allocation-size mistakes without persistent false positives.
+- [x] #4 Representative native calls across time, support, and ephemeris modules still compile, load, and preserve their existing successful return shapes.
+- [x] #5 Security review and code-adjacent documentation cover helper ownership, allocation bounds, build/process risks, logging, and residual compatibility tradeoffs.
 <!-- AC:END -->
 
 ## Implementation Plan
 
 <!-- SECTION:PLAN:BEGIN -->
-
 # Shared NIF Utility Hygiene Implementation Plan
 
 > **For agentic workers:** implement this plan task-by-task. Tasks use checkbox (`- [ ]`) syntax for tracking.
@@ -201,29 +208,57 @@ Improve maintainability of the shared native utility layer after string boundary
 - [ ] Backlog notes summarize final decisions, security review result, and unresolved questions if any.
 
 **Notes:** Unresolved questions: none requiring user input before implementation.
-
 <!-- SECTION:PLAN:END -->
 
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-
 Provenance: review finding rated Low. `c_src/utils.h` defines static helper implementations without an include guard and `make_list` uses a variable-length stack array. This task depends on `TASK-004.03` because string helper shape may change there. Classification: AFK.
 
 Planning context gathered 2026-06-13: `TASK-004.03` is Done, so native string boundary behavior and limits are already clarified. `c_src/utils.h` currently includes shared constants, static helper implementations, CSPICE mutex state, and NIF lifecycle callbacks with no include guard. It is included directly by `c_src/time.c`, `c_src/ephemeris.c`, and `c_src/support.c`, which preserves per-NIF shared-object state through `static` linkage. `make_list` currently uses `ERL_NIF_TERM result[len]`, and `Makefile` currently compiles first-party C with `-fPIC -finline-functions -Wall -Wmissing-prototypes`. No repo `docs/` directory exists; documentation should stay code-adjacent unless implementation finds a cross-cutting decision worth a small repo doc.
 
 Planning assumptions: preserve public Elixir APIs, NIF arities, successful return shapes, dirty scheduler choices, and the per-shared-object CSPICE mutex/error-state contract. Warning changes should target project-owned C and avoid noise from vendored CSPICE or external headers. Unresolved questions: none requiring user input before implementation.
 
+Started execution of recorded implementation plan on branch `task-004.04-jd-rounding-carry`. Initial review found no blocking questions; scope remains `c_src/utils.h`, first-party native call sites/tests as needed, `Makefile`, and code-adjacent documentation.
+
+Completed implementation checkpoints for Tasks 1-3: `c_src/utils.h` now has an include guard and explicit per-shared-object ownership comment; `make_list` builds result lists with `enif_make_list_cell` instead of a VLA; `Makefile` applies a stricter first-party warning policy and compiles only `$<` so `utils.h` remains a dependency rather than a compiler input. `mix compile` completed cleanly with the final warning flags.
+
+Verification checkpoint for Tasks 4-5: added `test/astro/native_hygiene_test.exs` to assert the include guard, ownership comment, no VLA list construction pattern, warning flags, and Makefile `$<` compile command. Updated `test/astro/native_scheduler_test.exs` to accept explicit normal-scheduler `0` flags. Focused native tests passed: `mix test test/astro/native_hygiene_test.exs test/astro/time_test.exs test/astro/support_test.exs test/astro/ephemeris_test.exs` -> 29 passed. Full verification passed with `mix check --no-retry` -> compiler, formatter, credo, docs, ExUnit, markdown, and unused_deps success; optional checks skipped because their packages are not installed: dialyzer/dialyxir, doctor, gettext, mix_audit, sobelow.
+
+Security review: helper ownership remains per shared object because `utils.h` still defines static state/functions and `ERL_NIF_INIT` users include it once; include guard prevents duplicate in-translation-unit declarations without changing linkage. `make_list` no longer allocates an input-length array on the stack and introduces no heap allocation or cleanup path. Existing heap allocations in `load_string`, support SPICE cells, and body-value reads retain size checks and cleanup. Build changes do not add new network/process execution; they narrow the compile input from `$^` to `$<`, keep vendored CSPICE linked from the existing archive, and add warnings for first-party C only. Operational logging behavior is unchanged: load/unload and CSPICE synchronization failures still log contextual errors to stderr, including configured kernel paths as before. Residual risk: `-Wno-unused-parameter` intentionally suppresses fixed NIF callback parameter noise so `-Wextra` remains usable; compatibility tradeoff accepted because explicit function table `0` flags and scheduler tests preserve NIF behavior.
+
+Post-finalization commit prep: updated `CHANGELOG.md` Unreleased section with the shared native utility include/allocation/warning hygiene entry before committing the completed task.
 <!-- SECTION:NOTES:END -->
 
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Implemented shared native utility hygiene cleanup without changing public NIF behavior.
+
+Summary:
+- Added normal include protection and an explicit ownership contract to `c_src/utils.h`, preserving the existing per-shared-object static CSPICE mutex/error/kernel state model.
+- Replaced the `make_list` variable-length stack array with reverse `enif_make_list_cell` construction, avoiding unbounded stack allocation while preserving list return shapes.
+- Tightened first-party native warnings in `Makefile` with `-Wextra`, prototype/style/signature/conversion/allocation-size/VLA diagnostics, and hard errors for implicit functions, incompatible pointer types, and VLAs; kept vendored CSPICE out of the warning surface by compiling only the C source `$<` and linking the existing archive.
+- Made normal-scheduler NIF entries explicit with `0` flags and updated scheduler source tests accordingly.
+- Added `test/astro/native_hygiene_test.exs` to cover include guard, ownership documentation, no VLA list pattern, warning policy, and first-party compile command.
+
+Verification:
+- `mix format --check-formatted` passed.
+- `mix compile` passed cleanly with final native warning flags.
+- `mix test test/astro/native_hygiene_test.exs test/astro/time_test.exs test/astro/support_test.exs test/astro/ephemeris_test.exs` passed: 29 tests/doctests.
+- `mix test test/astro/native_scheduler_test.exs test/astro/native_hygiene_test.exs` passed: 5 tests.
+- `mix check --no-retry` passed: compiler, formatter, credo, docs, ExUnit, markdown, unused_deps. Optional checks were skipped by ex_check because packages are not installed: dialyzer/dialyxir, doctor, gettext, mix_audit, sobelow.
+- `git diff --check` passed.
+
+Security review recorded in implementation notes. Residual accepted tradeoff: `-Wno-unused-parameter` suppresses fixed NIF callback parameter noise so `-Wextra` can remain useful without persistent false positives.
+<!-- SECTION:FINAL_SUMMARY:END -->
+
 ## Definition of Done
-
 <!-- DOD:BEGIN -->
-
-- [ ] #1 Native code compiles cleanly with the final warning policy.
-- [ ] #2 Relevant ExUnit coverage and `mix check` pass, or any skipped command is documented with the concrete reason.
-- [ ] #3 No first-party shared helper retains unbounded VLA behavior or ambiguous include ownership.
-- [ ] #4 Security review is recorded in task notes with residual risks or compatibility tradeoffs.
-- [ ] #5 Code-adjacent documentation explains final shared utility ownership, allocation bounds, and warning-policy decisions.
-- [ ] #6 Backlog task is updated at completion with modified files, checked acceptance criteria, and final summary.
+- [x] #1 Native code compiles cleanly with the final warning policy.
+- [x] #2 Relevant ExUnit coverage and `mix check` pass, or any skipped command is documented with the concrete reason.
+- [x] #3 No first-party shared helper retains unbounded VLA behavior or ambiguous include ownership.
+- [x] #4 Security review is recorded in task notes with residual risks or compatibility tradeoffs.
+- [x] #5 Code-adjacent documentation explains final shared utility ownership, allocation bounds, and warning-policy decisions.
+- [x] #6 Backlog task is updated at completion with modified files, checked acceptance criteria, and final summary.
 <!-- DOD:END -->
