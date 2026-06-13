@@ -7,6 +7,12 @@
 #include <erfa.h>
 #include "SpiceUsr.h"
 
+#if defined(__GNUC__)
+#define EX_ASTRO_UNUSED __attribute__((unused))
+#else
+#define EX_ASTRO_UNUSED
+#endif
+
 #define CSPICE_ERROR_LENGTH 1841
 
 typedef enum
@@ -143,7 +149,7 @@ free_string(char *value)
     free(value);
 }
 
-static bool
+static bool EX_ASTRO_UNUSED
 load_list(ErlNifEnv *env, ERL_NIF_TERM arg, size_t l, double *result)
 {
   unsigned int len;
@@ -162,7 +168,7 @@ load_list(ErlNifEnv *env, ERL_NIF_TERM arg, size_t l, double *result)
   return true;
 }
 
-static ERL_NIF_TERM
+static ERL_NIF_TERM EX_ASTRO_UNUSED
 make_list(ErlNifEnv *env, double *list, size_t len)
 {
   ERL_NIF_TERM result[len];
@@ -227,13 +233,13 @@ cspice_failed(char *error_msg)
   return true;
 }
 
-static ERL_NIF_TERM
+static ERL_NIF_TERM EX_ASTRO_UNUSED
 ok_result(ErlNifEnv *env, ERL_NIF_TERM r)
 {
   return enif_make_tuple2(env, enif_make_atom(env, "ok"), r);
 }
 
-static ERL_NIF_TERM
+static ERL_NIF_TERM EX_ASTRO_UNUSED
 ok_result2(ErlNifEnv *env, ERL_NIF_TERM r1, ERL_NIF_TERM r2)
 {
   return enif_make_tuple3(env, enif_make_atom(env, "ok"), r1, r2);

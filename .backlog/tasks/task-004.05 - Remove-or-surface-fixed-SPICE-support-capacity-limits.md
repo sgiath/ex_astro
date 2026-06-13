@@ -1,10 +1,11 @@
 ---
 id: TASK-004.05
 title: Remove or surface fixed SPICE support capacity limits
-status: To Do
-assignee: []
-created_date: "2026-06-13 13:35"
-updated_date: "2026-06-13 14:15"
+status: Done
+assignee:
+  - Codex
+created_date: '2026-06-13 13:35'
+updated_date: '2026-06-13 14:42'
 labels:
   - bug
   - native
@@ -19,6 +20,14 @@ references:
 documentation:
   - lib/astro/support.ex
   - README.md
+modified_files:
+  - CHANGELOG.md
+  - c_src/support.c
+  - c_src/utils.h
+  - config/config.exs
+  - lib/astro/support.ex
+  - test/astro/support_test.exs
+  - test/fixtures/kernels/ex_astro_test_many_values.tpc
 parent_task_id: TASK-004
 priority: low
 ordinal: 9000
@@ -27,27 +36,22 @@ ordinal: 9000
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
-
 Address hidden native capacity limits in SPICE support helpers. The desired outcome is either dynamic handling of valid larger results or explicit public errors/documentation when `spkobj`, `bodvcd`, or `bodvrd` exceed supported capacity.
-
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
-
 <!-- AC:BEGIN -->
-
-- [ ] #1 `spkobj/1` no longer silently depends on an undocumented 1000-ID native result cap; larger valid results are returned or fail with an explicit documented capacity error.
-- [ ] #2 `bodvcd/2` and `bodvrd/2` no longer silently depend on an undocumented 16-value native result cap; larger valid results are returned or fail with an explicit documented capacity error.
-- [ ] #3 Normal support calls for representative bundled kernels continue to return the existing `{:ok, list}` shapes and values.
-- [ ] #4 Capacity-exceeded behavior, if any cap remains, is covered by tests or documented examples for `spkobj/1`, `bodvcd/2`, and `bodvrd/2`.
-- [ ] #5 Native string validation, CSPICE mutex/error reset behavior, and scheduler classifications remain compatible with existing tests.
-- [ ] #6 Public documentation reflects the final capacity behavior and any retained limits.
+- [x] #1 `spkobj/1` no longer silently depends on an undocumented 1000-ID native result cap; larger valid results are returned or fail with an explicit documented capacity error.
+- [x] #2 `bodvcd/2` and `bodvrd/2` no longer silently depend on an undocumented 16-value native result cap; larger valid results are returned or fail with an explicit documented capacity error.
+- [x] #3 Normal support calls for representative bundled kernels continue to return the existing `{:ok, list}` shapes and values.
+- [x] #4 Capacity-exceeded behavior, if any cap remains, is covered by tests or documented examples for `spkobj/1`, `bodvcd/2`, and `bodvrd/2`.
+- [x] #5 Native string validation, CSPICE mutex/error reset behavior, and scheduler classifications remain compatible with existing tests.
+- [x] #6 Public documentation reflects the final capacity behavior and any retained limits.
 <!-- AC:END -->
 
 ## Implementation Plan
 
 <!-- SECTION:PLAN:BEGIN -->
-
 # SPICE Support Capacity Limits Implementation Plan
 
 > **For agentic workers:** implement this plan task-by-task. Tasks use checkbox (`- [ ]`) syntax for tracking.
@@ -203,17 +207,24 @@ Address hidden native capacity limits in SPICE support helpers. The desired outc
 - [ ] Task notes/final summary record the chosen approach, rejected alternative if meaningful, and verification performed.
 
 **Notes:** Prefer module/function docs over a new `docs/` file because this repo has no docs directory and the behavior is API-local.
-
 <!-- SECTION:PLAN:END -->
 
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-
 Provenance: review finding rated Low. `c_src/support.c` uses `SPICEINT_CELL(ids, 1000)` for `spkobj` and `SpiceDouble values[16]` for `bodvcd`/`bodvrd`; valid larger kernel data may fail in undocumented ways. Classification: AFK.
 
 Planning context gathered 2026-06-13: `c_src/support.c` currently declares `SPICEINT_CELL(ids, 1000)` plus `ERL_NIF_TERM erl_ids[1000]` in `spkobj/1`, and `SpiceDouble values[16]` with maxn `16` in both `bodvcd/2` and `bodvrd/2`. `lib/astro/support.ex` documents native string limits but no result-capacity limits. Existing tests cover normal `spkobj/1`, native string boundaries, and scheduler flags; normal `bodvcd/2`/`bodvrd/2` and result-capacity behavior need coverage. No repo `docs/` directory exists; code-adjacent ExDoc docs are the right primary documentation surface. Unresolved questions: none.
 
+Execution started on 2026-06-13. Reviewed existing implementation plan; no blocking concerns before implementation. Proceeding task-by-task with tests first where practical.
+
+Chosen approach: `spkobj/1` now uses dynamically allocated `SpiceCell` storage, starting at 1024 IDs and retrying on CSPICE `SPICE(SETEXCESS)` up to a documented 65,536-ID ceiling with an explicit capacity error. `bodvcd/2` and `bodvrd/2` now build the `BODY<id>_<item>` kernel variable name, use `dtpool_c` to discover numeric dimension/type, and fetch all values with `gdpool_c`, removing the old 16-value buffer. Added a tiny text-kernel fixture for >16-value coverage and updated ExDoc-visible support docs.
+
+Security review 2026-06-13: native allocations are bounded by either the documented `spkobj/1` ceiling (65,536 IDs) or the kernel-pool dimension returned by `dtpool_c`, with overflow checks before allocation. Caller strings still go through existing `load_string` limits and embedded-NUL rejection. CSPICE calls remain under the existing mutex/error-reset contract, including retry/error paths. Cleanup frees allocated SPK cells, body value buffers, and decoded strings on success and failure. File-path behavior is unchanged except for the tracked test fixture path in config. Capacity diagnostics expose only caller-supplied paths/items, constructed kernel variable names, and CSPICE-style errors already returned by the API; no secrets or unrelated process state are logged.
+
+Verification 2026-06-13: `mix test test/astro/support_test.exs test/astro/native_string_boundary_test.exs test/astro/native_scheduler_test.exs` passed (9 tests). `mix test` passed (33 passed, including 10 doctests). `mix check` passed compiler, unused_deps, formatter, credo, ex_doc, ex_unit, and markdown; optional checks were skipped because their packages are not installed. `git diff --check` passed.
+
+Changelog updated before commit: `CHANGELOG.md` now records the removal of hidden SPICE support result caps for `spkobj`, `bodvcd`, and `bodvrd` under Unreleased.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -229,13 +240,24 @@ created: 2026-06-13 14:15
 
 <!-- COMMENTS:END -->
 
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Implemented explicit/dynamic capacity handling for SPICE support helpers.
+
+- `spkobj/1` now allocates SPICE integer cells dynamically, retries on CSPICE set-capacity errors, and documents/returns a clear error if a file exceeds the retained 65,536-ID ceiling.
+- `bodvcd/2` and `bodvrd/2` now size numeric results from the kernel pool with `dtpool_c` and fetch the complete value list with `gdpool_c`, removing the previous 16-value native buffer. `bodvrd/2` keeps numeric body-string compatibility through `bods2c_c`.
+- Added a tracked text-kernel fixture and support tests covering normal `RADII`, >16-value constants, `spkobj` fixed-buffer regression, native string boundaries, and scheduler classification.
+- Updated ExDoc-visible `Astro.Support` docs with the final capacity contract.
+
+Verification: focused support/native tests passed; full `mix test` passed; full `mix check` passed. Security review found no unbounded allocation, buffer overflow, path traversal expansion, unsafe deserialization, privilege change, CSPICE mutex leak, or sensitive logging expansion introduced by this change.
+<!-- SECTION:FINAL_SUMMARY:END -->
+
 ## Definition of Done
-
 <!-- DOD:BEGIN -->
-
-- [ ] #1 Relevant support/native tests pass, including normal results and capacity behavior.
-- [ ] #2 `mix test` passes or any unrelated failure is documented with command output.
-- [ ] #3 Security review completed for native allocation, input validation, CSPICE error handling, file path use, and logging/error messages.
-- [ ] #4 ExDoc-visible support API docs match the implemented capacity contract.
-- [ ] #5 Backlog task records final chosen approach, modified files, and verification performed.
+- [x] #1 Relevant support/native tests pass, including normal results and capacity behavior.
+- [x] #2 `mix test` passes or any unrelated failure is documented with command output.
+- [x] #3 Security review completed for native allocation, input validation, CSPICE error handling, file path use, and logging/error messages.
+- [x] #4 ExDoc-visible support API docs match the implemented capacity contract.
+- [x] #5 Backlog task records final chosen approach, modified files, and verification performed.
 <!-- DOD:END -->

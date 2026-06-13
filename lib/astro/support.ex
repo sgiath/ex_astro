@@ -19,6 +19,10 @@ defmodule Astro.Support do
   - `bodvcd/2` and `bodvrd/2` read values from the SPICE kernel pool, so the
     relevant PCK or text kernel data must already be loaded.
   - `spkobj/1` inspects the SPK file path passed to it directly.
+  - `bodvcd/2` and `bodvrd/2` size numeric result lists from the kernel-pool
+    variable dimension at runtime.
+  - `spkobj/1` grows its native result cell as needed up to 65,536 object IDs.
+    Files above that bound return `{:error, "SPK object result exceeds supported capacity of 65536 IDs"}`.
   - Native string inputs must be non-empty binaries without embedded NUL bytes.
     Body names accept up to 36 bytes, kernel-pool item names accept up to
     32 bytes, and SPK file paths accept up to 255 bytes. Invalid native strings
@@ -114,6 +118,9 @@ defmodule Astro.Support do
 
   This is useful for exploring a kernel before calling ephemeris routines. The
   returned IDs can be converted to names with `bodc2n/1` when a mapping exists.
+  The native result cell grows as needed up to 65,536 unique object IDs. If an
+  SPK file exceeds that supported capacity, this function returns
+  `{:error, "SPK object result exceeds supported capacity of 65536 IDs"}`.
 
   ## Example
 
@@ -146,6 +153,9 @@ defmodule Astro.Support do
 
   This function is typically used with PCK data. For example, the pair
   `399` and `"RADII"` resolves to the kernel-pool variable `BODY399_RADII`.
+  Numeric result capacity is based on the variable dimension reported by the
+  kernel pool, so variables with more than 16 values are returned completely
+  when native allocation succeeds.
 
   ## Example
 
@@ -176,7 +186,10 @@ defmodule Astro.Support do
   ## Particulars
 
   This is the named-body variant of `bodvcd/2`. It is often the most convenient
-  way to access body constants from loaded PCK kernels.
+  way to access body constants from loaded PCK kernels. Numeric result capacity
+  is based on the variable dimension reported by the kernel pool, so variables
+  with more than 16 values are returned completely when native allocation
+  succeeds.
 
   ## Example
 

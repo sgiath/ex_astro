@@ -6,6 +6,7 @@
 - run blocking SPICE-backed NIFs on dirty schedulers to protect BEAM scheduler responsiveness
 - harden native string input handling against embedded NULs and oversized binaries
 - normalize Julian-date datetime rounding across midnight to avoid invalid hour 24 values
+- remove hidden SPICE support result caps for `spkobj`, `bodvcd`, and `bodvrd`
 
 ## v0.2.2 (2024-10-01)
 

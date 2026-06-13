@@ -51,6 +51,7 @@ config :ex_astro,
 
     # Planetary Constants Kernels
     "priv/kernels/pck/pck00011.tpc",
+    "test/fixtures/kernels/ex_astro_test_many_values.tpc",
     "priv/kernels/pck/mars_iau2000_v1.tpc",
     "priv/kernels/pck/gm_de440.tpc",
     "priv/kernels/pck/moon_pa_de440_200625.bpc",

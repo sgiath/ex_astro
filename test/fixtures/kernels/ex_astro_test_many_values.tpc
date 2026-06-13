@@ -1,0 +1,17 @@
+KPL/PCK
+
+\begindata
+
+NAIF_BODY_NAME += ( 'EX_ASTRO_TEST_BODY' )
+NAIF_BODY_CODE += ( 100001 )
+
+BODY100001_MANY = (
+  1.0, 2.0, 3.0, 4.0, 5.0,
+  6.0, 7.0, 8.0, 9.0, 10.0,
+  11.0, 12.0, 13.0, 14.0, 15.0,
+  16.0, 17.0, 18.0, 19.0, 20.0
+)
+
+\begintext
+
+Test-only body constant fixture for ex_astro support capacity coverage.
