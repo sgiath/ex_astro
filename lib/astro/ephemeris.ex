@@ -56,6 +56,11 @@ defmodule Astro.Ephemeris do
 
   Neither special nor general relativistic effects are accounted for in the aberration
   corrections applied by this routine.
+
+  Native string inputs must be non-empty binaries without embedded NUL bytes.
+  Body names and body ID strings accept up to 36 bytes, frame names accept up
+  to 26 bytes, and aberration correction names accept up to 5 bytes. Invalid
+  native strings raise `ArgumentError`.
   """
   use Astro.NIF, "ephemeris"
 

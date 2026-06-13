@@ -4,6 +4,7 @@
 
 - serialize CSPICE-backed NIF access to prevent concurrent kernel/error-state races
 - run blocking SPICE-backed NIFs on dirty schedulers to protect BEAM scheduler responsiveness
+- harden native string input handling against embedded NULs and oversized binaries
 
 ## v0.2.2 (2024-10-01)
 

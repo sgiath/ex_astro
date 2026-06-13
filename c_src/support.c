@@ -39,7 +39,7 @@ bodn2c(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
   SpiceChar *name = NULL;
   ERL_NIF_TERM result;
 
-  if (!load_string(env, argv[0], &name))
+  if (!load_string(env, argv[0], NATIVE_STRING_BODY, &name))
   {
     result = enif_make_badarg(env);
     goto cleanup;
@@ -93,7 +93,7 @@ spkobj(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
   SpiceInt length;
   SpiceChar error[CSPICE_ERROR_LENGTH];
 
-  if (!load_string(env, argv[0], &file))
+  if (!load_string(env, argv[0], NATIVE_STRING_KERNEL_PATH, &file))
   {
     result = enif_make_badarg(env);
     goto cleanup;
@@ -148,7 +148,7 @@ bodvcd(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
   SpiceChar error[CSPICE_ERROR_LENGTH];
 
   if (!enif_get_int(env, argv[0], &code) ||
-      !load_string(env, argv[1], &item))
+      !load_string(env, argv[1], NATIVE_STRING_KERNEL_ITEM, &item))
   {
     result = enif_make_badarg(env);
     goto cleanup;
@@ -189,8 +189,8 @@ bodvrd(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
   ERL_NIF_TERM result;
   SpiceChar error[CSPICE_ERROR_LENGTH];
 
-  if (!load_string(env, argv[0], &name) ||
-      !load_string(env, argv[1], &item))
+  if (!load_string(env, argv[0], NATIVE_STRING_BODY, &name) ||
+      !load_string(env, argv[1], NATIVE_STRING_KERNEL_ITEM, &item))
   {
     result = enif_make_badarg(env);
     goto cleanup;

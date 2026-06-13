@@ -35,6 +35,10 @@ defmodule Astro.Time do
     epochs because the accepted units are not all Julian Dates.
   - `jd_to_float/1` and `jd_from_float/1` are explicit interop helpers for code
     that still needs a single float.
+  - Native string inputs must be non-empty binaries without embedded NUL bytes.
+    `str2et/1` accepts up to 256 bytes, `utc2et/1` accepts up to 80 bytes, and
+    `unitim/3` time-system names accept up to 5 bytes. Invalid native strings
+    raise `ArgumentError`.
 
   ## Example
 

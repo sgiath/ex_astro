@@ -8,11 +8,11 @@ spkezr(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
   SpiceDouble et;
   ERL_NIF_TERM result;
 
-  if (!load_string(env, argv[0], &target) ||
+  if (!load_string(env, argv[0], NATIVE_STRING_BODY, &target) ||
       !enif_get_double(env, argv[1], &et) ||
-      !load_string(env, argv[2], &reference_frame) ||
-      !load_string(env, argv[3], &abcorr) ||
-      !load_string(env, argv[4], &observer))
+      !load_string(env, argv[2], NATIVE_STRING_FRAME, &reference_frame) ||
+      !load_string(env, argv[3], NATIVE_STRING_ABCORR, &abcorr) ||
+      !load_string(env, argv[4], NATIVE_STRING_BODY, &observer))
   {
     result = enif_make_badarg(env);
     goto cleanup;
@@ -63,8 +63,8 @@ spkez(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 
   if (!enif_get_int(env, argv[0], &target) ||
       !enif_get_double(env, argv[1], &et) ||
-      !load_string(env, argv[2], &reference_frame) ||
-      !load_string(env, argv[3], &abcorr) ||
+      !load_string(env, argv[2], NATIVE_STRING_FRAME, &reference_frame) ||
+      !load_string(env, argv[3], NATIVE_STRING_ABCORR, &abcorr) ||
       !enif_get_int(env, argv[4], &observer))
   {
     result = enif_make_badarg(env);
@@ -114,7 +114,7 @@ spkgeo(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 
   if (!enif_get_int(env, argv[0], &target) ||
       !enif_get_double(env, argv[1], &et) ||
-      !load_string(env, argv[2], &reference_frame) ||
+      !load_string(env, argv[2], NATIVE_STRING_FRAME, &reference_frame) ||
       !enif_get_int(env, argv[3], &observer))
   {
     result = enif_make_badarg(env);

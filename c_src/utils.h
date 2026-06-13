@@ -1,12 +1,53 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <string.h>
 #include <erl_nif.h>
 #include <erfa.h>
 #include "SpiceUsr.h"
 
 #define CSPICE_ERROR_LENGTH 1841
+
+typedef enum
+{
+  NATIVE_STRING_BODY,
+  NATIVE_STRING_FRAME,
+  NATIVE_STRING_ABCORR,
+  NATIVE_STRING_KERNEL_PATH,
+  NATIVE_STRING_KERNEL_ITEM,
+  NATIVE_STRING_TIME,
+  NATIVE_STRING_UTC_TIME,
+  NATIVE_STRING_TIME_SYSTEM
+} NativeStringKind;
+
+/*
+ * Native string limits are byte counts excluding the trailing terminator.
+ *
+ * The NIF boundary rejects empty binaries, embedded NUL bytes, and binaries
+ * longer than the category limit before CSPICE or ERFA-adjacent code sees a
+ * NUL-terminated C string. Invalid native strings intentionally use the same
+ * badarg/ArgumentError path as non-binary inputs.
+ *
+ * Limit rationale:
+ * - Body names/ID strings: CSPICE body-name translation MAXL is 36.
+ * - Frames: frames.req says user frame names must not exceed 26 characters.
+ * - Aberration corrections: longest documented option is "XCN+S".
+ * - Kernel paths: furnsh_c FILSIZ accepts non-blank file names up to 255.
+ * - Kernel items: kernel.req caps kernel variable names at 32 characters.
+ * - Time strings: str2et_c handles general calendar strings; 256 covers the
+ *   documented examples without caller-controlled allocation.
+ * - UTC strings: utc2et_c says input length should not exceed 80 characters.
+ * - Time systems: longest unitim_c system name is "JDTDB"/"JDTDT".
+ */
+#define NATIVE_STRING_BODY_MAX 36
+#define NATIVE_STRING_FRAME_MAX 26
+#define NATIVE_STRING_ABCORR_MAX 5
+#define NATIVE_STRING_KERNEL_PATH_MAX 255
+#define NATIVE_STRING_KERNEL_ITEM_MAX 32
+#define NATIVE_STRING_TIME_MAX 256
+#define NATIVE_STRING_UTC_TIME_MAX 80
+#define NATIVE_STRING_TIME_SYSTEM_MAX 5
 
 static ErlNifMutex *cspice_mutex = NULL;
 
@@ -37,20 +78,60 @@ cspice_unlock(void)
   enif_mutex_unlock(cspice_mutex);
 }
 
+static size_t
+native_string_limit(NativeStringKind kind)
+{
+  switch (kind)
+  {
+  case NATIVE_STRING_BODY:
+    return NATIVE_STRING_BODY_MAX;
+  case NATIVE_STRING_FRAME:
+    return NATIVE_STRING_FRAME_MAX;
+  case NATIVE_STRING_ABCORR:
+    return NATIVE_STRING_ABCORR_MAX;
+  case NATIVE_STRING_KERNEL_PATH:
+    return NATIVE_STRING_KERNEL_PATH_MAX;
+  case NATIVE_STRING_KERNEL_ITEM:
+    return NATIVE_STRING_KERNEL_ITEM_MAX;
+  case NATIVE_STRING_TIME:
+    return NATIVE_STRING_TIME_MAX;
+  case NATIVE_STRING_UTC_TIME:
+    return NATIVE_STRING_UTC_TIME_MAX;
+  case NATIVE_STRING_TIME_SYSTEM:
+    return NATIVE_STRING_TIME_SYSTEM_MAX;
+  }
+
+  return 0;
+}
+
 static bool
-load_string(ErlNifEnv *env, ERL_NIF_TERM arg, char **result)
+load_string(ErlNifEnv *env, ERL_NIF_TERM arg, NativeStringKind kind, char **result)
 {
   ErlNifBinary bin;
+  size_t limit = native_string_limit(kind);
+  size_t allocation_size;
+  char *value;
 
   if (!enif_inspect_binary(env, arg, &bin))
     return false;
 
-  *result = malloc(sizeof(char) * (bin.size + 1));
-  if (*result == NULL)
+  if (bin.size == 0 || bin.size > limit)
     return false;
 
-  memcpy(*result, bin.data, bin.size);
-  (*result)[bin.size] = '\0';
+  if (memchr(bin.data, '\0', bin.size) != NULL)
+    return false;
+
+  if (bin.size > SIZE_MAX - 1)
+    return false;
+
+  allocation_size = bin.size + 1;
+  value = malloc(allocation_size);
+  if (value == NULL)
+    return false;
+
+  memcpy(value, bin.data, bin.size);
+  value[bin.size] = '\0';
+  *result = value;
 
   return true;
 }
@@ -194,7 +275,7 @@ load(ErlNifEnv *env, void **priv, ERL_NIF_TERM load_info)
 
   while (enif_get_list_cell(env, tail, &head, &tail))
   {
-    if (!load_string(env, head, &path))
+    if (!load_string(env, head, NATIVE_STRING_KERNEL_PATH, &path))
     {
       fprintf(stderr, "Failed to decode SPICE kernel path during NIF load\n");
       load_status = 1;

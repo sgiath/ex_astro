@@ -267,7 +267,7 @@ str2et(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
   ERL_NIF_TERM result;
   SpiceChar error[CSPICE_ERROR_LENGTH];
 
-  if (!load_string(env, argv[0], &timstr))
+  if (!load_string(env, argv[0], NATIVE_STRING_TIME, &timstr))
   {
     result = enif_make_badarg(env);
     goto cleanup;
@@ -307,7 +307,7 @@ utc2et(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
   ERL_NIF_TERM result;
   SpiceChar error[CSPICE_ERROR_LENGTH];
 
-  if (!load_string(env, argv[0], &utcstr))
+  if (!load_string(env, argv[0], NATIVE_STRING_UTC_TIME, &utcstr))
   {
     result = enif_make_badarg(env);
     goto cleanup;
@@ -348,8 +348,8 @@ unitim(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
   SpiceChar error[CSPICE_ERROR_LENGTH];
 
   if (!enif_get_double(env, argv[0], &epoch) ||
-      !load_string(env, argv[1], &insys) ||
-      !load_string(env, argv[2], &outsys))
+      !load_string(env, argv[1], NATIVE_STRING_TIME_SYSTEM, &insys) ||
+      !load_string(env, argv[2], NATIVE_STRING_TIME_SYSTEM, &outsys))
   {
     result = enif_make_badarg(env);
     goto cleanup;

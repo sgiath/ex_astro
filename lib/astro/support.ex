@@ -19,6 +19,10 @@ defmodule Astro.Support do
   - `bodvcd/2` and `bodvrd/2` read values from the SPICE kernel pool, so the
     relevant PCK or text kernel data must already be loaded.
   - `spkobj/1` inspects the SPK file path passed to it directly.
+  - Native string inputs must be non-empty binaries without embedded NUL bytes.
+    Body names accept up to 36 bytes, kernel-pool item names accept up to
+    32 bytes, and SPK file paths accept up to 255 bytes. Invalid native strings
+    raise `ArgumentError`.
 
   ## Example
 
