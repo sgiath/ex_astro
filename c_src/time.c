@@ -18,6 +18,20 @@ make_julian_date(ErlNifEnv *env, double jd1, double jd2)
   return enif_make_tuple2(env, enif_make_double(env, jd1), enif_make_double(env, jd2));
 }
 
+static bool
+advance_calendar_day(int *iy, int *im, int *id)
+{
+  int status;
+  double djm0, djm, fd;
+
+  status = eraCal2jd(*iy, *im, *id, &djm0, &djm);
+  if (!erfa_status_ok(status))
+    return false;
+
+  status = eraJd2cal(djm0, djm + 1.0, iy, im, id, &fd);
+  return erfa_status_ok(status);
+}
+
 static double
 topocentric_tdb_minus_tt(double jd1, double jd2, double ut, double elong, double u, double v)
 {
@@ -247,6 +261,20 @@ jd2dt(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
     return enif_make_badarg(env);
 
   eraD2tf(6, fd, &sign, ihmsf);
+
+  /*
+   * eraD2tf rounds independently from the calendar date. Near midnight that
+   * can produce hour 24, which Elixir datetime types cannot represent.
+   */
+  if (ihmsf[0] >= 24) {
+    if (!advance_calendar_day(&iy, &im, &id))
+      return enif_make_badarg(env);
+
+    ihmsf[0] = 0;
+    ihmsf[1] = 0;
+    ihmsf[2] = 0;
+    ihmsf[3] = 0;
+  }
 
   return enif_make_tuple7(
       env,

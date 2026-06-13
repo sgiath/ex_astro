@@ -20,6 +20,13 @@ defmodule Astro.TimeTest do
     assert NaiveDateTime.diff(converted, datetime, :microsecond) |> abs() <= 10
   end
 
+  test "jd2dt rounds fractional day carry across midnight to the next date" do
+    julian_date = {2_451_544.5, 0.9999999999999999}
+
+    assert Astro.Time.jd2dt(julian_date) == {2000, 1, 2, 0, 0, 0, 0}
+    assert Astro.Time.to_datetime(julian_date) == ~N[2000-01-02 00:00:00.000000]
+  end
+
   test "utc tai and tt conversions round trip" do
     utc = {2_451_545.0, 0.0}
 

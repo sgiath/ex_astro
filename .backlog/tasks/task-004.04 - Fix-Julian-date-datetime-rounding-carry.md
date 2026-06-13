@@ -1,15 +1,14 @@
 ---
 id: TASK-004.04
 title: Fix Julian-date datetime rounding carry
-status: In Progress
+status: Done
 assignee:
   - Codex
-created_date: "2026-06-13 13:35"
-updated_date: "2026-06-13 14:14"
+created_date: '2026-06-13 13:35'
+updated_date: '2026-06-13 14:22'
 labels:
   - bug
   - native
-  - needs-planning
 dependencies: []
 references:
   - c_src/time.c
@@ -19,6 +18,10 @@ documentation:
   - lib/astro/time.ex
   - test/astro/time_test.exs
   - c_src/time.c
+modified_files:
+  - c_src/time.c
+  - test/astro/time_test.exs
+  - CHANGELOG.md
 parent_task_id: TASK-004
 priority: medium
 ordinal: 8000
@@ -27,26 +30,21 @@ ordinal: 8000
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
-
 Correct the Julian-date to calendar datetime conversion so fractional-day rounding cannot produce invalid time components. The desired outcome is that edge cases near day boundaries normalize into the next date instead of returning hour 24.
-
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
-
 <!-- AC:BEGIN -->
-
-- [ ] #1 `Astro.Time.jd2dt/1` and `Astro.Time.to_datetime/1` never return or construct invalid `24:00:00.000000` values after rounding.
-- [ ] #2 A focused regression test covers a Julian date whose fractional day rounds across midnight and expects the next calendar date at `00:00:00.000000`.
-- [ ] #3 Existing date conversion tests continue to pass, including J2000 and datetime round-trip coverage.
-- [ ] #4 Security review confirms the native-boundary change adds no new unsafe memory ownership, unchecked ERFA status path, sensitive logging, filesystem access, network access, process execution, or dependency surface.
-- [ ] #5 Any non-obvious rounding-carry decision is documented near the changed code or tests; README remains unchanged unless public docs become inaccurate.
+- [x] #1 `Astro.Time.jd2dt/1` and `Astro.Time.to_datetime/1` never return or construct invalid `24:00:00.000000` values after rounding.
+- [x] #2 A focused regression test covers a Julian date whose fractional day rounds across midnight and expects the next calendar date at `00:00:00.000000`.
+- [x] #3 Existing date conversion tests continue to pass, including J2000 and datetime round-trip coverage.
+- [x] #4 Security review confirms the native-boundary change adds no new unsafe memory ownership, unchecked ERFA status path, sensitive logging, filesystem access, network access, process execution, or dependency surface.
+- [x] #5 Any non-obvious rounding-carry decision is documented near the changed code or tests; README remains unchanged unless public docs become inaccurate.
 <!-- AC:END -->
 
 ## Implementation Plan
 
 <!-- SECTION:PLAN:BEGIN -->
-
 # Julian-Date Datetime Rounding Carry Implementation Plan
 
 > **For agentic workers:** implement this plan task-by-task. Tasks use checkbox (`- [ ]`) syntax for tracking.
@@ -173,17 +171,20 @@ Correct the Julian-date to calendar datetime conversion so fractional-day roundi
 - [ ] Task notes summarize the final decision, compatibility impact, and verification performed.
 
 **Notes:** Prefer small local documentation over repo-level docs for this narrow bug fix.
-
 <!-- SECTION:PLAN:END -->
 
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-
 Provenance: review finding rated Medium. `c_src/time.c` computes date with `eraJd2cal` and then rounds fractional day with `eraD2tf(6, ...)`, which can carry to hour 24 near midnight. `lib/astro/time.ex` then builds `NaiveDateTime`, which cannot represent hour 24. Classification: AFK.
 
 Planning context gathered 2026-06-13: `c_src/time.c` native `jd2dt` currently calls `eraJd2cal(jd1, jd2, ...)` and then `eraD2tf(6, fd, ...)`; near midnight this can produce `ihmsf[0] == 24` for the date returned before rounding. `lib/astro/time.ex` exposes both `jd2dt/1` and `to_datetime/1`; `to_datetime/1` directly builds `%NaiveDateTime{}` from the native tuple, so the invariant should be fixed at the native tuple boundary. Existing focused tests live in `test/astro/time_test.exs`. Assumptions: keep split Julian Date representation unchanged; no new public API; no new dependencies; no broad README update expected for this narrow bug fix. Unresolved questions: none.
 
+Started executing the approved implementation plan. Current branch was `master`; moving work to a dedicated task branch before code changes.
+
+Implemented native midnight-carry normalization in `c_src/time.c` and added focused regression coverage in `test/astro/time_test.exs`. First verification: `mix test test/astro/time_test.exs` passes (18 tests, 7 doctests). Existing compiler warnings are from unused helpers in `c_src/utils.h`, not from this change.
+
+Security/native-boundary review completed. The change keeps existing NIF argument decoding, uses ERFA for date advancement instead of manual calendar arithmetic, checks both added ERFA status paths, and returns `badarg` on unexpected conversion failure. It introduces no new native allocation/ownership, logging, filesystem access, network access, process execution, dependencies, or sensitive data exposure. Compatibility impact is limited to fixing the invalid rounded boundary tuple: near-midnight values now normalize to the next date at `00:00:00.000000`. Verification performed: `mix test test/astro/time_test.exs`, `mix test`, and `mix check` all passed.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -199,13 +200,23 @@ created: 2026-06-13 14:14
 
 <!-- COMMENTS:END -->
 
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Implemented native normalization for Julian-date fractional-day rounding carry in `c_src/time.c`. When ERFA's fractional-day rounding reaches hour 24, the native `jd2dt` path now advances the Gregorian date through ERFA and returns `00:00:00.000000`, so both `Astro.Time.jd2dt/1` and `Astro.Time.to_datetime/1` receive valid calendar components.
+
+Added a focused regression test in `test/astro/time_test.exs` for a split Julian Date just below midnight, asserting both the tuple API and `NaiveDateTime` wrapper return the next date at midnight.
+
+Verification: `mix test test/astro/time_test.exs` passed, `mix test` passed, and `mix check` passed. Security review found no new unsafe memory ownership, unchecked ERFA status path, logging, filesystem, network, process execution, or dependency surface.
+
+Changelog updated under `Unreleased` to note the Julian-date midnight rounding normalization.
+<!-- SECTION:FINAL_SUMMARY:END -->
+
 ## Definition of Done
-
 <!-- DOD:BEGIN -->
-
-- [ ] #1 Implementation plan is stored on the Backlog task before code changes.
-- [ ] #2 Boundary regression and existing time conversion tests pass.
-- [ ] #3 Native-boundary security review is completed and recorded in task notes.
-- [ ] #4 Relevant code-adjacent documentation or test naming captures the rounding-carry decision.
-- [ ] #5 Modified files and final verification summary are recorded on the task when implementation completes.
+- [x] #1 Implementation plan is stored on the Backlog task before code changes.
+- [x] #2 Boundary regression and existing time conversion tests pass.
+- [x] #3 Native-boundary security review is completed and recorded in task notes.
+- [x] #4 Relevant code-adjacent documentation or test naming captures the rounding-carry decision.
+- [x] #5 Modified files and final verification summary are recorded on the task when implementation completes.
 <!-- DOD:END -->
