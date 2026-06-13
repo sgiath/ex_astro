@@ -4,8 +4,8 @@ title: Run blocking SPICE NIFs on dirty schedulers
 status: Done
 assignee:
   - Codex
-created_date: '2026-06-13 13:35'
-updated_date: '2026-06-13 13:59'
+created_date: "2026-06-13 13:35"
+updated_date: "2026-06-13 13:59"
 labels:
   - performance
   - native
@@ -41,11 +41,15 @@ ordinal: 6000
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
+
 Protect BEAM scheduler responsiveness by marking file-backed or potentially heavy SPICE NIF calls as dirty jobs where appropriate. The desired outcome is that kernel inspection and ephemeris work no longer run on normal schedulers when they can block.
+
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
+
 <!-- AC:BEGIN -->
+
 - [x] #1 SPICE NIF calls with direct file I/O, file-backed ephemeris access, or potentially long computation are registered with the appropriate dirty scheduler flags.
 - [x] #2 Short ERFA-only time conversions remain on normal schedulers unless implementation evidence justifies dirty scheduling.
 - [x] #3 CSPICE mutex/error isolation remains intact when dirty-scheduled calls run concurrently.
@@ -56,6 +60,7 @@ Protect BEAM scheduler responsiveness by marking file-backed or potentially heav
 ## Implementation Plan
 
 <!-- SECTION:PLAN:BEGIN -->
+
 # Dirty SPICE NIF Scheduler Classification Implementation Plan
 
 > **For agentic workers:** implement this plan task-by-task. Tasks use checkbox (`- [ ]`) syntax for tracking.
@@ -205,11 +210,13 @@ Protect BEAM scheduler responsiveness by marking file-backed or potentially heav
 - [ ] Any residual load/unload scheduler limitation is documented if not fixed in this task.
 
 **Notes:** Avoid user-facing API doc churn unless public behavior changes, which is not expected.
+
 <!-- SECTION:PLAN:END -->
 
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
+
 Provenance: review finding rated High. NIF registrations currently have no dirty flags, while SPICE calls such as `spkobj_c` can read files and ephemeris calls may do heavier work. Planning agent should evaluate dirty CPU vs dirty IO flags per NIF. Classification: AFK.
 
 Planning notes 2026-06-13: Current `ErlNifFunc` tables in `c_src/ephemeris.c`, `c_src/support.c`, and `c_src/time.c` use three-field registrations, so no exported function currently has dirty scheduler flags. Relevant current tests include `test/astro/cspice_concurrency_test.exs`, `test/astro/ephemeris_test.exs`, and `test/astro/time_test.exs`.
@@ -225,33 +232,40 @@ Verification: red/green scheduler registration contract test added in `test/astr
 Security review: scheduler changes are limited to registration metadata and tests; CSPICE mutex/error-reset paths are unchanged and still wrap dirty and normal CSPICE calls. `spkobj/1` path behavior is unchanged. No new logging, dependencies, shell execution, or file access surfaces were added.
 
 Post-finalization documentation update: added an `Unreleased` changelog entry for running blocking SPICE-backed NIFs on dirty schedulers before committing the task changes.
+
 <!-- SECTION:NOTES:END -->
 
 ## Comments
 
 <!-- COMMENTS:BEGIN -->
-author: Codex
-created: 2026-06-13 13:54
----
-Implementation plan added. Scope kept to dirty scheduler classification/registration and verification; CSPICE serialization redesign remains out of scope for this child task.
----
 
 author: Codex
 created: 2026-06-13 13:54
+
 ---
-Planning complete; removed `needs-planning` label. Task is ready for execution.
----
+
+## Implementation plan added. Scope kept to dirty scheduler classification/registration and verification; CSPICE serialization redesign remains out of scope for this child task.
 
 author: Codex
 created: 2026-06-13 13:54
+
 ---
-Started implementation. Inspecting current NIF registration tables and existing tests before applying dirty scheduler classification.
+
+## Planning complete; removed `needs-planning` label. Task is ready for execution.
+
+author: Codex
+created: 2026-06-13 13:54
+
 ---
+
+## Started implementation. Inspecting current NIF registration tables and existing tests before applying dirty scheduler classification.
+
 <!-- COMMENTS:END -->
 
 ## Final Summary
 
 <!-- SECTION:FINAL_SUMMARY:BEGIN -->
+
 ## Summary
 
 - Registered blocking/heavy SPICE-backed NIFs with dirty scheduler flags: ephemeris state retrieval and CSPICE time parsing as dirty CPU, direct SPK inspection as dirty IO.
@@ -268,7 +282,9 @@ Started implementation. Inspecting current NIF registration tables and existing 
 <!-- SECTION:FINAL_SUMMARY:END -->
 
 ## Definition of Done
+
 <!-- DOD:BEGIN -->
+
 - [x] #1 Every exported NIF has a reviewed scheduler classification.
 - [x] #2 Dirty scheduler flags are applied only to classified SPICE-backed blocking or heavy calls.
 - [x] #3 NIF build/load and representative public API behavior are verified.

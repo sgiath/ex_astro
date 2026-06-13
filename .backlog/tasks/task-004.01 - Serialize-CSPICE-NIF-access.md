@@ -4,8 +4,8 @@ title: Serialize CSPICE NIF access
 status: Done
 assignee:
   - Codex
-created_date: '2026-06-13 13:35'
-updated_date: '2026-06-13 13:47'
+created_date: "2026-06-13 13:35"
+updated_date: "2026-06-13 13:47"
 labels:
   - security
   - native
@@ -46,11 +46,15 @@ ordinal: 5000
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
+
 Prevent races around CSPICE global kernel and error state by ensuring SPICE calls and related error handling execute with native synchronization. The desired outcome is deterministic behavior when multiple BEAM scheduler threads call SPICE-backed NIFs concurrently.
+
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
+
 <!-- AC:BEGIN -->
+
 - [x] #1 Concurrent calls to SPICE-backed NIFs cannot interleave CSPICE calls with `failed_c`, `getmsg_c`, or `reset_c` error handling.
 - [x] #2 The NIF load/unload lifecycle initializes and releases any synchronization primitive safely, including partial load failure paths.
 - [x] #3 A regression test or stress check exercises concurrent SPICE-backed calls without inconsistent errors or crashes.
@@ -62,6 +66,7 @@ Prevent races around CSPICE global kernel and error state by ensuring SPICE call
 ## Implementation Plan
 
 <!-- SECTION:PLAN:BEGIN -->
+
 # Serialize CSPICE NIF Access Implementation Plan
 
 > **For agentic workers:** implement this plan task-by-task. Tasks use checkbox (`- [ ]`) syntax for tracking.
@@ -196,14 +201,17 @@ Prevent races around CSPICE global kernel and error state by ensuring SPICE call
 **Notes:** Prefer concise native comments/module docs over a new `docs/` file unless the final design has repo-wide operational implications.
 
 Execution note: implemented the recorded plan with per-NIF ErlNifMutex synchronization plus `-Wl,-Bsymbolic` so each shared object binds internally to its own statically linked CSPICE copy. This avoided adding a process-global OS semaphore and keeps lifecycle ownership inside the NIF load/unload callbacks.
+
 <!-- SECTION:PLAN:END -->
 
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
+
 Planning context gathered on 2026-06-13.
 
 Existing structure:
+
 - `c_src/utils.h` is included by each non-vendored NIF C file and currently owns shared helpers, `handle_error/1`, and NIF `load`/`upgrade`/`unload` callbacks.
 - `c_src/ephemeris.c` calls CSPICE ephemeris/orbit routines and checks `failed_c` after each call.
 - `c_src/support.c` calls CSPICE body/kernel support routines and checks `failed_c` after each call.
@@ -212,6 +220,7 @@ Existing structure:
 - Existing tests are async and cover SPICE-backed happy paths and error paths, but there is no intentional concurrency stress around CSPICE global error state.
 
 Planning assumptions:
+
 - Public Elixir API shape should remain stable.
 - The implementation should protect the CSPICE call plus `failed_c`/`getmsg_c`/`reset_c` as one native critical section.
 - Implementation must verify whether the current static CSPICE linkage creates separate global state per NIF shared object or shared process-wide state, and choose synchronization scope accordingly.
@@ -228,36 +237,45 @@ Planning assumptions:
 2026-06-13 security review: no lock path intentionally returns while holding the mutex; all CSPICE error paths read/reset error state before unlock. Decoded native strings are still freed on cleanup paths. Logs cover mutex init failure, synchronization unavailable, error-mode setup failure, kernel path load failure, kernel-path decode failure, and unload cleanup failure. No arbitrary binary payloads are logged beyond existing configured kernel paths.
 
 2026-06-13 rejected alternatives/residual risk: rejected a named OS semaphore because it would add cross-process namespace/DoS concerns and weaker ownership semantics. Residual risk is that `-Wl,-Bsymbolic` is ELF/linker-specific; current project target is Linux GCC CSPICE as reflected by the existing Makefile URL.
+
 <!-- SECTION:NOTES:END -->
 
 ## Comments
 
 <!-- COMMENTS:BEGIN -->
-author: Codex
-created: 2026-06-13 13:40
----
-Implementation plan written and saved. Task remains ready for an implementing agent; no code changes were made during planning.
----
 
 author: Codex
 created: 2026-06-13 13:40
+
 ---
-Planning label cleared after saving the implementation plan; status left as `To Do` for execution.
+
+## Implementation plan written and saved. Task remains ready for an implementing agent; no code changes were made during planning.
+
+author: Codex
+created: 2026-06-13 13:40
+
 ---
+
+## Planning label cleared after saving the implementation plan; status left as `To Do` for execution.
+
 <!-- COMMENTS:END -->
 
 ## Final Summary
 
 <!-- SECTION:FINAL_SUMMARY:BEGIN -->
+
 Implemented native serialization for CSPICE-backed NIFs. `c_src/utils.h` now owns the CSPICE synchronization invariant, mutex lifecycle, locked error extraction/reset, load failure cleanup, and unload kernel cleanup. `c_src/ephemeris.c`, `c_src/support.c`, and the SPICE-backed portions of `c_src/time.c` now hold the mutex around CSPICE calls and their associated `failed_c`/`getmsg_c`/`reset_c` sequence while leaving ERFA-only conversions unchanged.
 
 Added `-Wl,-Bsymbolic` in the Makefile so each NIF shared object binds to its own statically linked CSPICE copy and per-NIF mutex. Added a concurrent SPICE regression test covering successful and failing calls.
 
 Verification: `mix compile`, `mix test`, and `mix check` all pass. `readelf -d` confirmed the generated NIF shared objects have the `SYMBOLIC` flag.
+
 <!-- SECTION:FINAL_SUMMARY:END -->
 
 ## Definition of Done
+
 <!-- DOD:BEGIN -->
+
 - [x] #1 `mix compile` succeeds after native synchronization changes.
 - [x] #2 Relevant tests, including the added concurrent SPICE regression/stress coverage, pass locally with `mix test`.
 - [x] #3 All non-vendored CSPICE calls that share global state are covered by the chosen native synchronization boundary and keep CSPICE error handling non-interleavable.

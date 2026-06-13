@@ -4,8 +4,8 @@ title: Harden NIF string input handling
 status: Done
 assignee:
   - Codex
-created_date: '2026-06-13 13:35'
-updated_date: '2026-06-13 14:12'
+created_date: "2026-06-13 13:35"
+updated_date: "2026-06-13 14:12"
 labels:
   - security
   - native
@@ -39,11 +39,15 @@ ordinal: 7000
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
+
 Make binary-to-C-string conversion safe at the NIF boundary. The desired outcome is that native string arguments reject embedded NUL bytes, avoid unbounded allocation, and cannot overflow size arithmetic before allocation.
+
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
+
 <!-- AC:BEGIN -->
+
 - [x] #1 String arguments passed to native code reject embedded NUL bytes before CSPICE can observe truncated values.
 - [x] #2 String allocation has explicit, documented size limits appropriate for paths, body names, frames, time strings, time-system names, aberration corrections, and kernel item names.
 - [x] #3 Allocation size arithmetic is checked before allocation, and invalid, allocation-unsafe, or oversized inputs return a controlled failure without leaks.
@@ -54,6 +58,7 @@ Make binary-to-C-string conversion safe at the NIF boundary. The desired outcome
 ## Implementation Plan
 
 <!-- SECTION:PLAN:BEGIN -->
+
 # Harden NIF String Input Handling Implementation Plan
 
 > **For agentic workers:** implement this plan task-by-task. Tasks use checkbox (`- [ ]`) syntax for tracking.
@@ -210,11 +215,13 @@ Make binary-to-C-string conversion safe at the NIF boundary. The desired outcome
 - [ ] Backlog task notes summarize final decisions and any rejected alternatives after implementation.
 
 **Notes:** Keep docs concise; avoid duplicating CSPICE manuals except where needed to justify limits.
+
 <!-- SECTION:PLAN:END -->
 
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
+
 Provenance: review finding rated Medium. `load_string` in `c_src/utils.h` accepts arbitrary binaries, copies them to C strings, and can silently truncate at embedded NUL when passed to CSPICE. It also allocates based on caller-controlled binary size. Classification: AFK.
 
 Planning context gathered 2026-06-13: the current shared `load_string` in `c_src/utils.h` inspects any binary, allocates `bin.size + 1`, copies bytes, and appends a terminator. It is used by runtime calls in `c_src/ephemeris.c`, `c_src/support.c`, and `c_src/time.c`, plus load-time kernel path decoding in `c_src/utils.h`. Existing tests cover valid time/support/ephemeris paths and invalid types, but not embedded NUL or oversize strings. No `docs/` files currently exist in the repo. Assumption: implementation should preserve public NIF arities and successful return shapes; controlled invalid-string failures may follow the existing badarg/ArgumentError pattern unless implementation finds a stronger local convention. Unresolved questions: none requiring user input before implementation; implementer must choose exact max lengths from CSPICE expectations and this library's documented usage, then record rationale.
@@ -226,16 +233,21 @@ Implementation complete. Final native string limits, in bytes excluding terminat
 Security review completed. `load_string` rejects embedded NULs with `memchr` before copying, checks `bin.size > SIZE_MAX - 1` before allocating the terminator byte, allocates exactly `bin.size + 1`, and only writes the output pointer after successful allocation/copy. Multi-string call sites still initialize pointers to NULL and use existing cleanup labels, so earlier allocations are freed if a later string fails. No CSPICE call receives a rejected string. Logging does not expose new runtime string payloads; load-time kernel decode failure remains generic, while existing configured-path CSPICE load failures still include the configured path for diagnostics. Residual compatibility tradeoff: some invalid empty or oversized strings now raise `ArgumentError` instead of returning CSPICE error tuples; documented valid calls are unchanged.
 
 Changelog updated under Unreleased to mention native string input hardening before commit.
+
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary
 
 <!-- SECTION:FINAL_SUMMARY:BEGIN -->
+
 Hardened native string decoding by adding category-specific byte limits and rejecting empty, embedded-NUL, and oversized binaries before C string allocation or CSPICE calls. Updated all first-party string call sites and load-time kernel paths to use explicit categories, documented the limits in native and public module docs, and added public regression coverage for NUL and oversize rejection across time, support, and ephemeris APIs. Verified with `mix compile --force`, focused wrapper tests, `mix test`, and `mix check`.
+
 <!-- SECTION:FINAL_SUMMARY:END -->
 
 ## Definition of Done
+
 <!-- DOD:BEGIN -->
+
 - [x] #1 Relevant NIF code compiles cleanly after string-boundary changes.
 - [x] #2 Existing valid SPICE/ERFA wrapper tests continue to pass.
 - [x] #3 Regression tests demonstrate embedded NUL rejection and oversize handling for affected public surfaces.
