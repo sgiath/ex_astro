@@ -473,12 +473,15 @@ day2sec(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
  *   remain normal scheduler NIFs.
  * - unitim/sec2day/day2sec are short CSPICE scalar/constant conversions and
  *   remain normal scheduler NIFs.
+ * - Shared kernel-management entries (furnsh/unload/kclear) from utils.h
+ *   are dirty IO jobs; kernel_list stays on a normal scheduler.
  *
  * All CSPICE calls, dirty or normal, keep using the mutex/error-reset contract
  * in utils.h. NIF load/unload callbacks can still perform kernel I/O outside
  * ErlNifFunc dirty scheduling.
  */
 static ErlNifFunc nif_funcs[] = {
+    EX_ASTRO_KERNEL_NIF_FUNCS,
     {"dtf2d", 6, dtf2d, 0},
     {"utc2tai", 2, utc2tai, 0},
     {"tai2tt", 2, tai2tt, 0},

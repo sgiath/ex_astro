@@ -64,8 +64,6 @@ defmodule Astro.Ephemeris do
   """
   use Astro.NIF, "ephemeris"
 
-  require Logger
-
   @doc """
   Determine the apparent, true, or geometric state of a body with respect to another body relative
   to a user specified reference frame.

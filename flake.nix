@@ -11,15 +11,11 @@
 
       perSystem =
         { pkgs, ... }:
-        let
-          beamPackages = pkgs.beam_minimal.packages.erlang_29;
-          elixir = beamPackages.elixir_1_20;
-        in
         {
           devShells = {
             default = pkgs.mkShell {
               packages = with pkgs; [
-                elixir
+                beamMinimal29Packages.elixir_1_20
                 liberfa
                 gmp
                 pkg-config
@@ -34,10 +30,7 @@
 
               shellHook = ''
                 export LD_LIBRARY_PATH="${
-                  pkgs.lib.makeLibraryPath [
-                    pkgs.liberfa
-                    pkgs.gmp
-                  ]
+                  pkgs.lib.makeLibraryPath [ pkgs.liberfa pkgs.gmp ]
                 }:$LD_LIBRARY_PATH"
               '';
             };

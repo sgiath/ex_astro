@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- add `Astro.Star` catalog propagation and BCRS state-vector conversions with auditable ERFA warnings
 - serialize CSPICE-backed NIF access to prevent concurrent kernel/error-state races
 - run blocking SPICE-backed NIFs on dirty schedulers to protect BEAM scheduler responsiveness
 - harden native string input handling against embedded NULs and oversized binaries

@@ -413,12 +413,15 @@ cleanup:
  *   runs as a dirty IO job.
  * - body-name/ID and kernel-pool value lookups are short CSPICE table/pool
  *   lookups and remain normal scheduler NIFs.
+ * - Shared kernel-management entries (furnsh/unload/kclear) from utils.h
+ *   are dirty IO jobs; kernel_list stays on a normal scheduler.
  *
  * All CSPICE calls, dirty or normal, keep using the mutex/error-reset contract
  * in utils.h. NIF load/unload callbacks can still perform kernel I/O outside
  * ErlNifFunc dirty scheduling.
  */
 static ErlNifFunc nif_funcs[] = {
+    EX_ASTRO_KERNEL_NIF_FUNCS,
     {"bodc2n", 1, bodc2n, 0},
     {"bodn2c", 1, bodn2c, 0},
     {"spkobj", 1, spkobj, ERL_NIF_DIRTY_JOB_IO_BOUND},

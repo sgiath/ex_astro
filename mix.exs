@@ -22,7 +22,7 @@ defmodule Astro.MixProject do
 
       # Docs
       name: "ex_astro",
-      source_url: "https://github.com/Sgiath/ex_astro",
+      source_url: "https://github.com/sgiath/ex_astro",
       homepage_url: "https://sgiath.dev/libraries#ex_astro",
       description: """
       Library wrapping around SPICE and ERFA libraries
@@ -34,7 +34,8 @@ defmodule Astro.MixProject do
 
   def application do
     [
-      extra_applications: [:logger]
+      extra_applications: [:logger],
+      mod: {Astro.Application, []}
     ]
   end
 
@@ -43,7 +44,7 @@ defmodule Astro.MixProject do
       {:gnuplot, "~> 1.22"},
 
       # HTTP client to download kernels
-      {:req, "~> 0.6"},
+      {:req, "~> 0.7"},
 
       # C compilation
       {:elixir_make, "~> 0.10", runtime: false},
@@ -59,11 +60,11 @@ defmodule Astro.MixProject do
   defp package do
     [
       name: "ex_astro",
-      maintainers: ["Sgiath <astro@sgiath.dev>"],
+      maintainers: ["sgiath <astro@sgiath.dev>"],
       files: ~w(lib LICENSE mix.exs README* CHANGELOG* c_src/*.[ch] Makefile),
       licenses: ["WTFPL"],
       links: %{
-        "GitHub" => "https://github.com/Sgiath/ex_astro",
+        "GitHub" => "https://github.com/sgiath/ex_astro",
         "SPICE" => "https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/index.html",
         "ERFA" => "https://github.com/liberfa/erfa"
       }
@@ -77,11 +78,12 @@ defmodule Astro.MixProject do
       api_reference: false,
       extras: [
         "README.md": [filename: "readme", title: "Overview"],
+        "examples/README.md": [filename: "orbits-example", title: "Example: Orbit Diagrams"],
         "CHANGELOG.md": [filename: "changelog", title: "Changelog"]
       ],
       formatters: ["html"],
       source_ref: "v#{@version}",
-      source_url: "https://github.com/Sgiath/ex_astro"
+      source_url: "https://github.com/sgiath/ex_astro"
     ]
   end
 end

@@ -219,12 +219,15 @@ conics(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
  *   run as dirty CPU jobs.
  * - oscelt/conics are bounded numeric conversions over caller-provided arrays
  *   and remain normal scheduler NIFs.
+ * - Shared kernel-management entries (furnsh/unload/kclear) from utils.h
+ *   are dirty IO jobs; kernel_list stays on a normal scheduler.
  *
  * All CSPICE calls, dirty or normal, keep using the mutex/error-reset contract
  * in utils.h. NIF load/unload callbacks can still perform kernel I/O outside
  * ErlNifFunc dirty scheduling.
  */
 static ErlNifFunc nif_funcs[] = {
+    EX_ASTRO_KERNEL_NIF_FUNCS,
     {"spkezr", 5, spkezr, ERL_NIF_DIRTY_JOB_CPU_BOUND},
     {"spkez", 5, spkez, ERL_NIF_DIRTY_JOB_CPU_BOUND},
     {"spkgeo", 4, spkgeo, ERL_NIF_DIRTY_JOB_CPU_BOUND},

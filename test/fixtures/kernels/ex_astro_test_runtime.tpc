@@ -1,0 +1,9 @@
+KPL/PCK
+
+\begindata
+
+BODY100002_RUNTIME = ( 42.0 )
+
+\begintext
+
+Test-only fixture for ex_astro runtime kernel load/unload coverage.

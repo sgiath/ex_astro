@@ -32,7 +32,7 @@ LDFLAGS += -L$(SPICE_SRC_DIR)/lib -l:cspice.a -l:csupport.a
 LDFLAGS += -lerfa -lgmp
 
 .PHONY: all
-all: $(TARGET_DIR)/time.so $(TARGET_DIR)/ephemeris.so $(TARGET_DIR)/support.so
+all: $(TARGET_DIR)/time.so $(TARGET_DIR)/ephemeris.so $(TARGET_DIR)/support.so $(TARGET_DIR)/star.so
 
 # NIFs compilation
 
