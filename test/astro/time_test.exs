@@ -61,6 +61,23 @@ defmodule Astro.TimeTest do
     assert Astro.Time.sec2day(21_600.0) == julian_date
   end
 
+  test "datetime and ephemeris time helpers agree with SPICE and round trip" do
+    assert_in_delta(
+      Astro.Time.to_et(~U[2000-01-01 12:00:00Z]),
+      Astro.Time.utc2et("2000-01-01T12:00:00"),
+      1.0e-3
+    )
+
+    datetime = ~N[2026-08-14 00:00:00]
+
+    converted =
+      datetime
+      |> Astro.Time.to_et()
+      |> Astro.Time.from_et()
+
+    assert NaiveDateTime.diff(converted, datetime, :microsecond) |> abs() <= 10
+  end
+
   test "jd helpers provide explicit float interop" do
     assert Astro.Time.jd_from_float(2_451_545.0) == {2_451_545.0, 0.0}
     assert Astro.Time.jd_to_float({2_451_545.0, 0.25}) == 2_451_545.25

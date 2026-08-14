@@ -275,6 +275,37 @@ defmodule Astro.Time do
   def utc2et(time), do: NIF.utc2et(time)
 
   @doc """
+  Convert a `DateTime` or `NaiveDateTime` to SPICE Ephemeris Time (`ET`).
+
+  Calendar fields are interpreted as UTC. Returns TDB seconds past J2000,
+  computed via ERFA (UTC -> TAI -> TT -> TDB), so no leap second kernel is
+  required. Equivalent to `utc2et/1` for string inputs.
+  """
+  @spec to_et(DateTime.t() | NaiveDateTime.t()) :: ephemeris_time()
+  def to_et(dt) when is_struct(dt, DateTime) or is_struct(dt, NaiveDateTime) do
+    dt
+    |> to_julian_date()
+    |> utc2tai()
+    |> tai2tt()
+    |> tt2tdb()
+    |> day2sec()
+  end
+
+  @doc """
+  Convert SPICE Ephemeris Time (`ET`, TDB seconds past J2000) to a UTC
+  `NaiveDateTime`.
+  """
+  @spec from_et(ephemeris_time()) :: NaiveDateTime.t()
+  def from_et(et) when is_float(et) do
+    et
+    |> sec2day()
+    |> tdb2tt()
+    |> tt2tai()
+    |> tai2utc()
+    |> to_datetime()
+  end
+
+  @doc """
   Convert an epoch between SPICE uniform numeric time systems.
 
   This is the low-level SPICE interface and therefore uses scalar numeric

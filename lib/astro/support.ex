@@ -201,4 +201,35 @@ defmodule Astro.Support do
   """
   @spec bodvrd(String.t(), kernel_item()) :: {:ok, [float()]} | {:error, String.t()}
   def bodvrd(_name, _item), do: :erlang.nif_error({:error, :not_loaded})
+
+  @doc """
+  Look up the gravitational parameter GM (km³/s²) of a body from loaded kernels.
+
+  Accepts a NAIF integer ID, an integer-string ID such as `"10"`, or a body
+  name such as `"SUN"`. A PCK containing GM values, such as `gm_de440.tpc`,
+  must be loaded.
+  """
+  @spec gm(naif_id() | String.t()) :: {:ok, float()} | {:error, String.t()}
+  def gm(code) when is_integer(code) do
+    case bodvcd(code, "GM") do
+      {:ok, [mu]} ->
+        {:ok, mu}
+
+      {:ok, values} ->
+        {:error, "GM for body #{code} has #{length(values)} values, expected 1"}
+
+      {:error, _reason} = error ->
+        error
+    end
+  end
+
+  def gm(name) when is_binary(name) do
+    name = String.trim(name)
+
+    if Regex.match?(~r/\A-?\d+\z/, name) do
+      gm(String.to_integer(name))
+    else
+      with {:ok, code} <- bodn2c(name), do: gm(code)
+    end
+  end
 end

@@ -191,42 +191,29 @@ defmodule Orbits do
   # --- the ex_astro part: epoch, states, orbital elements ---------------------
 
   # SPICE ephemeris time (TDB seconds past J2000) from the UTC epoch
-  defp epoch_et do
-    @epoch
-    |> Astro.Time.to_julian_date()
-    |> Astro.Time.utc2tai()
-    |> Astro.Time.tai2tt()
-    |> Astro.Time.tt2tdb()
-    |> Astro.Time.day2sec()
-  end
+  defp epoch_et, do: Astro.Time.to_et(@epoch)
 
   defp compute(%{compress: compress, bodies: bodies}) do
     # gravitational parameter of the Sun (NAIF ID 10) from gm_de440.tpc
-    {:ok, [mu]} = Astro.Support.bodvcd(10, "GM")
+    {:ok, mu} = Astro.Support.gm(10)
     orbits = Enum.map(bodies, &orbit(&1, mu, compress))
     scale = @fit_extent / max_extent(orbits)
     Enum.map(orbits, &rescale(&1, scale))
   end
 
   defp orbit({id, name}, mu, compress) do
-    # geometric state of the body relative to the Sun ("10") in the ecliptic
-    # frame [km, km/s], then osculating conic elements at the same epoch
-    {:ok, state, _lt} = Astro.Ephemeris.spkezr(id, epoch_et(), "ECLIPJ2000", "NONE", "10")
-    {:ok, [rp, e, inc, node, argp, m0, _t0, _mu]} = Astro.Ephemeris.oscelt(state, epoch_et(), mu)
+    et = epoch_et()
 
-    a_km = rp / (1.0 - e)
-    period_s = 2.0 * :math.pi() * :math.sqrt(a_km * a_km * a_km / mu)
+    {:ok, orb} =
+      Astro.Orbit.osculating(id, "10", et, frame: "ECLIPJ2000", mu: mu)
 
-    # in-plane basis in ecliptic coordinates: u toward periapsis, v advanced 90 deg
-    {cw, sw} = {:math.cos(argp), :math.sin(argp)}
-    {co, so} = {:math.cos(node), :math.sin(node)}
-    {ci, si} = {:math.cos(inc), :math.sin(inc)}
-    u = {cw * co - sw * so * ci, cw * so + sw * co * ci, sw * si}
-    v = {-sw * co - cw * so * ci, -sw * so + cw * co * ci, cw * si}
+    a_km = Astro.Orbit.semi_major_axis(orb)
+    period_s = Astro.Orbit.period(orb)
+    {u, v, _w} = Astro.Orbit.perifocal_basis(orb)
 
     # radial compression: uniform per-orbit scale keeps e, i and orientations true
     semi_major = :math.pow(a_km / @au_km, compress)
-    semi_minor = semi_major * :math.sqrt(1.0 - e * e)
+    semi_minor = semi_major * :math.sqrt(1.0 - orb.ecc * orb.ecc)
     {ring_op, dot_w, dot_op, trail_deg} = Map.fetch!(@style, name)
 
     %{
@@ -236,30 +223,18 @@ defmodule Orbits do
       dot_op: dot_op,
       trail_deg: trail_deg,
       a_au: a_km / @au_km,
-      e: e,
-      inc: inc,
+      e: orb.ecc,
+      inc: orb.inc,
       period_s: period_s,
-      ecc_anomaly: kepler(normalize(m0), e),
+      ecc_anomaly: Astro.Orbit.eccentric_anomaly_at(orb, et),
       p: scale2(project(u), semi_major),
       q: scale2(project(v), semi_minor),
-      c: scale2(project(u), -semi_major * e)
+      c: scale2(project(u), -semi_major * orb.ecc)
     }
   end
 
   # --- geometry ----------------------------------------------------------------
 
-  defp normalize(m) when m > 3.141592653589793, do: m - 2.0 * :math.pi()
-  defp normalize(m), do: m
-
-  # Kepler's equation M = E - e sin E, solved by Newton iteration
-  defp kepler(m, e), do: kepler_iter(m + e * :math.sin(m), m, e, 0)
-
-  defp kepler_iter(ec, _m, _e, 60), do: ec
-
-  defp kepler_iter(ec, m, e, n) do
-    delta = (m - (ec - e * :math.sin(ec))) / (1.0 - e * :math.cos(ec))
-    if abs(delta) < 1.0e-13, do: ec + delta, else: kepler_iter(ec + delta, m, e, n + 1)
-  end
 
   # scene rotation about ecliptic pole, camera tilt from face-on, y flipped for SVG
   defp project({x, y, z}) do

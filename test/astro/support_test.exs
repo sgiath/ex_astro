@@ -15,6 +15,14 @@ defmodule Astro.SupportTest do
     assert {:ok, [6378.1366, 6378.1366, 6356.7519]} = Astro.Support.bodvrd("399", "RADII")
   end
 
+  test "GM lookup accepts body IDs and names" do
+    assert {:ok, mu} = Astro.Support.gm(10)
+    assert_in_delta mu, 132_712_440_041.0, 1.0e6
+    assert Astro.Support.gm("SUN") == Astro.Support.gm(10)
+    assert Astro.Support.gm("10") == Astro.Support.gm(10)
+    assert {:error, _reason} = Astro.Support.gm("NOT_A_BODY")
+  end
+
   test "body constants return numeric kernel-pool values larger than 16 entries" do
     assert {:ok, @many_values} = Astro.Support.bodvcd(100_001, "MANY")
     assert {:ok, @many_values} = Astro.Support.bodvrd("EX_ASTRO_TEST_BODY", "MANY")

@@ -76,33 +76,28 @@ iex> Astro.Time.day2sec(jd)
 0.0
 ```
 
-## Ephemeris API
+## Ephemeris and Orbit APIs
 
-`Astro.Ephemeris` returns states of solar-system bodies from the loaded SPICE
-kernels and converts them to and from orbital elements. Ephemeris time (TDB
-seconds past J2000) plugs in directly from the `Astro.Time` chain:
+`Astro.Ephemeris` provides the low-level SPICE state and conic operations.
+`Astro.Orbit` adds named osculating elements, propagation, derived quantities,
+anomaly calculations, and perifocal geometry:
 
 ```elixir
 # UTC timestamp -> SPICE ephemeris time
-et =
-  ~U[2026-08-14 00:00:00Z]
-  |> Astro.Time.to_julian_date()
-  |> Astro.Time.utc2tai()
-  |> Astro.Time.tai2tt()
-  |> Astro.Time.tt2tdb()
-  |> Astro.Time.day2sec()
+et = Astro.Time.to_et(~U[2026-08-14 00:00:00Z])
 
-# state of Earth relative to the Sun in the ecliptic frame [km, km/s]
-{:ok, state, _light_time} = Astro.Ephemeris.spkezr("3", et, "ECLIPJ2000", "NONE", "10")
+# osculating orbit of Earth around the Sun in the ecliptic frame
+{:ok, orbit} =
+  Astro.Orbit.osculating("3", "10", et, frame: "ECLIPJ2000")
 
-# osculating orbital elements at the same epoch
-{:ok, [mu]} = Astro.Support.bodvcd(10, "GM")
-{:ok, [rp, ecc, inc, _node, _argp, _m0, _t0, _mu]} = Astro.Ephemeris.oscelt(state, et, mu)
+semi_major_axis_km = Astro.Orbit.semi_major_axis(orbit)
+period_seconds = Astro.Orbit.period(orbit)
 ```
 
-`Astro.Support` handles the metadata around it: body name/ID translation
-(`bodn2c/1`, `bodc2n/1`), kernel-pool constants like GM and radii (`bodvcd/2`,
-`bodvrd/2`), and SPK file inspection (`spkobj/1`).
+`Astro.Support` handles the metadata around these calls: body name/ID
+translation (`bodn2c/1`, `bodc2n/1`), scalar gravitational parameters
+(`gm/1`), general kernel-pool constants (`bodvcd/2`, `bodvrd/2`), and SPK file
+inspection (`spkobj/1`).
 
 ## Star Catalog API
 
