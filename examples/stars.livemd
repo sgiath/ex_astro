@@ -1,0 +1,764 @@
+# Mapping Nearby Stars
+
+[![Run in Livebook](https://livebook.dev/badge/v1/blue.svg)](https://livebook.dev/run?url=https%3A%2F%2Fgithub.com%2Fsgiath%2Fex_astro%2Fblob%2Fmaster%2Fexamples%2Fstars.livemd)
+
+This notebook turns a 10-parsec star catalog into a rotating SVG map using
+`ex_astro`. Everything astronomical in it — proper-motion propagation,
+astrometry-to-state conversion — is a library call; the rest is plain Elixir
+and a bit of SVG.
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/sgiath/ex_astro/master/examples/nearby-stars.svg" width="72%" alt="Rotating 3D map of the 100 nearest stellar systems, centered on Sol"/>
+</p>
+
+These are not artist's impressions: every dot is a real BCRS position,
+propagated from the catalog epoch to the scene epoch and rotated into the
+J2000 ecliptic. The animation is a rigid rotation about the ecliptic pole, so
+the timing is exact — unlike the orbit diagrams, there is no uniform-$E$
+approximation to confess.
+
+The notebook is organised as a tutorial. The first half walks through the
+library: how a catalog row becomes a Cartesian state. The second half builds
+the map in stages — first face-on, then through a tilted camera, then
+animated — so each drawing technique is visible on its own before they
+combine into the finished scene.
+
+On first run it downloads the 25 August 2023 update of table A1 from
+[Reylé et al. 2021](https://cdsarc.cds.unistra.fr/ftp/cats/J/A+A/650/A201/ReadMe),
+_The 10 parsec sample in the Gaia era_, to `~/.cache/ex_astro/catalogs/`. The
+notebook verifies the catalog's SHA-256 digest and writes `nearby-stars.svg`
+next to itself.
+
+The NIF build needs a C toolchain and liberfa at link time — inside this
+repo's flake: `nix develop`, then open the notebook in Livebook.
+
+```elixir
+ex_astro =
+  if File.exists?(Path.expand("../mix.exs", __DIR__)) do
+    {:ex_astro, path: Path.expand("..", __DIR__)}
+  else
+    {:ex_astro, "~> 0.3"}
+  end
+
+Mix.install([ex_astro, {:kino, "~> 0.16"}])
+```
+
+## Load the 10 parsec catalog
+
+Reylé et al. 2021 is a census of every star, brown dwarf, and exoplanet
+within 10 parsecs, assembled in the Gaia era and published as VizieR
+catalogue `J/A+A/650/A201`. Table A1 is a fixed-width ASCII dump: one object
+per row, fields at published byte columns, no delimiters. The 25 August 2023
+update is what this notebook pins by sha256.
+
+Two reductions happen before any astronomy does. Planets are dropped —
+Jupiter-mass companions are in the table, but they are not stellar systems
+and would otherwise appear as extra dots. Multiple stars in one catalogued
+system are then collapsed to a single representative: the member with the
+brightest available V or Gaia magnitude. Alpha Centauri A, B, and Proxima
+share a system id; keeping all three would stack three overlapping dots, and
+the primary is the one the eye should weigh.
+
+The parser slices columns with 1-based inclusive ranges from the VizieR
+ReadMe (`field(line, first, last)` is `binary_part` plus trim). RA / Dec /
+epoch / parallax are required; proper motion and radial velocity default to
+zero when blank; magnitude walks V, then Gaia $G$, then a Gaia estimate, then
+a faint fallback of 20.
+
+```elixir
+defmodule NearbyStars.Catalog do
+  @moduledoc false
+
+  @cache Path.expand("~/.cache/ex_astro/catalogs/tablea1.dat")
+  @url "https://cdsarc.cds.unistra.fr/ftp/cats/J/A+A/650/A201/tablea1.dat.gz"
+  @sha256 "dcd8ed6d4d338ef1cafff867bbb3c85e0737d9082509311d80fd1cdfdf79e7f8"
+
+  def read! do
+    case File.read(@cache) do
+      {:ok, catalog} ->
+        verify!(catalog)
+        catalog
+
+      {:error, :enoent} ->
+        download!()
+
+      {:error, reason} ->
+        raise File.Error, reason: reason, action: "read file", path: @cache
+    end
+  end
+
+  defp download! do
+    IO.puts("downloading VizieR 10 pc catalog ...")
+    response = Req.get!(@url, raw: true, receive_timeout: 120_000, retry: false)
+    response.status == 200 || raise "GET #{@url} -> HTTP #{response.status}"
+
+    catalog = :zlib.gunzip(response.body)
+    verify!(catalog)
+    File.mkdir_p!(Path.dirname(@cache))
+    File.write!(@cache <> ".tmp", catalog)
+    File.rename!(@cache <> ".tmp", @cache)
+    catalog
+  end
+
+  defp verify!(catalog) do
+    actual =
+      catalog
+      |> then(&:crypto.hash(:sha256, &1))
+      |> Base.encode16(case: :lower)
+
+    actual == @sha256 ||
+      raise "catalog sha256 mismatch: expected #{@sha256}, got #{actual}"
+
+    :ok
+  end
+end
+
+defmodule NearbyStars.Parse do
+  @moduledoc false
+
+  def systems(catalog) do
+    catalog
+    |> String.split("\n", trim: true)
+    |> Enum.map(&parse_row/1)
+    |> Enum.reject(&(&1.object_type == "Planet"))
+    |> Enum.group_by(& &1.system)
+    |> Enum.map(fn {_system, members} -> Enum.min_by(members, & &1.magnitude) end)
+  end
+
+  defp parse_row(line) do
+    visual = parse_float(field(line, 406, 412))
+    gaia = parse_float(field(line, 353, 361))
+    gaia_estimate = parse_float(field(line, 363, 368))
+    common_name = field(line, 545, 561)
+    catalog_name = field(line, 11, 39)
+
+    %{
+      system: parse_integer!(field(line, 6, 9)),
+      object_type: field(line, 41, 46),
+      ra: parse_float!(field(line, 79, 91)),
+      dec: parse_float!(field(line, 94, 106)),
+      epoch: parse_float!(field(line, 108, 113)),
+      parallax: parse_float!(field(line, 115, 122)),
+      pm_ra: parse_float(field(line, 165, 180)) || 0.0,
+      pm_dec: parse_float(field(line, 199, 214)) || 0.0,
+      radial_velocity: parse_float(field(line, 264, 271)) || 0.0,
+      magnitude: visual || gaia || gaia_estimate || 20.0,
+      name: if(common_name == "", do: catalog_name, else: common_name)
+    }
+  end
+
+  defp field(line, first, last) do
+    line
+    |> binary_part(first - 1, last - first + 1)
+    |> String.trim()
+  end
+
+  defp parse_float(""), do: nil
+
+  defp parse_float(value) do
+    case Float.parse(value) do
+      {number, ""} -> number
+      _ -> nil
+    end
+  end
+
+  defp parse_float!(value), do: parse_float(value) || raise("invalid float: #{inspect(value)}")
+
+  defp parse_integer!(value) do
+    case Integer.parse(value) do
+      {number, ""} -> number
+      _ -> raise "invalid integer: #{inspect(value)}"
+    end
+  end
+end
+
+catalog = NearbyStars.Catalog.read!()
+systems = NearbyStars.Parse.systems(catalog)
+{byte_size(catalog), length(systems)}
+```
+
+## Propagate one star, then convert it to a BCRS state
+
+The astronomical conversion is performed entirely through `Astro.Star`.
+`pmsafe/8` walks a catalog entry from its source epoch to the scene epoch;
+`starpv/6` turns the propagated astrometry into a BCRS Cartesian state in au
+and au/day.
+
+Parallax $\pi$ in arcseconds is the reciprocal of distance:
+
+$$
+d[\mathrm{pc}] = \frac{1}{\pi[\mathrm{arcsec}]}
+$$
+
+The catalog stores milliarcseconds, so the code divides by $1000$ before the
+ERFA call. A star at $0.747$ arcsec is $1.34$ pc $\approx 4.37$ ly away —
+Alpha Centauri, after the collapse to the brightest member.
+
+`pmsafe` is the _safe_ proper-motion propagator (`eraPmsafe`). The ordinary
+routine divides by parallax on the way to a space-velocity; a tiny or
+zero $\pi$ (or a proper motion that implies an absurd transverse speed)
+blows up. The safe variant substitutes a floor distance and reports
+`:distance_overridden` rather than returning garbage. Nearby stars in this
+catalog are safely measured, but the function is the one you want for mixed
+catalogues.
+
+Epochs are two-part TDB Julian Dates `{jd1, jd2}` — the same form
+`Astro.Time` uses, so the full date is `jd1 + jd2` without burning a 64-bit
+float on a number near $2.45 \times 10^6$. Both calls here pin `jd1` at
+J2000.0 ($2451545.0$) and put the offset in `jd2`:
+
+- source: $(t_{\mathrm{yr}} - 2000) \times 365.25$ days from the catalog
+  epoch
+- scene: `Astro.Time.to_et(epoch) / 86400` — ET seconds past J2000, as days
+
+The catalog's `pmRA` is already the _projected_ rate
+$\mu_{\alpha*} = \dot\alpha \cos\delta$, which is what you plot on the sky.
+ERFA wants the coordinate rate $\dot\alpha = d\alpha/dt$, so the code
+divides by $\cos\delta$ before converting mas/yr to rad/yr. Forgetting that
+step shears every star toward the poles.
+
+```elixir
+epoch = ~U[2026-08-14 00:00:00Z]
+deg = :math.pi() / 180.0
+mas_to_rad = :math.pi() / (180.0 * 3_600.0 * 1_000.0)
+au_per_ly = 63_241.077
+
+# After collapsing each catalogued system to its brightest member, the
+# nearest neighbour is Alpha Centauri A (Rigil Kentaurus). Proxima is
+# in that same system.
+nearest = Enum.max_by(systems, & &1.parallax)
+
+ra = nearest.ra * deg
+dec = nearest.dec * deg
+# The catalog's pmRA already includes cos(dec); ERFA expects dRA/dt.
+pm_ra = nearest.pm_ra / :math.cos(dec) * mas_to_rad
+pm_dec = nearest.pm_dec * mas_to_rad
+parallax = nearest.parallax / 1_000.0
+source_epoch = {2_451_545.0, (nearest.epoch - 2000.0) * 365.25}
+scene_epoch = {2_451_545.0, Astro.Time.to_et(epoch) / 86_400.0}
+
+unwrap = fn
+  {:ok, value}, _op ->
+    value
+
+  {:ok, value, warnings}, op ->
+    IO.warn("#{op} #{nearest.name}: #{inspect(warnings)}")
+    value
+
+  {:error, reason}, op ->
+    raise "#{op} failed for #{nearest.name}: #{inspect(reason)}"
+end
+
+{ra2, dec2, pm_ra2, pm_dec2, parallax2, radial_velocity2} =
+  unwrap.(
+    Astro.Star.pmsafe(
+      ra,
+      dec,
+      pm_ra,
+      pm_dec,
+      parallax,
+      nearest.radial_velocity,
+      source_epoch,
+      scene_epoch
+    ),
+    :pmsafe
+  )
+
+[x, y, z, vx, vy, vz] =
+  unwrap.(
+    Astro.Star.starpv(ra2, dec2, pm_ra2, pm_dec2, parallax2, radial_velocity2),
+    :starpv
+  )
+
+distance_ly = :math.sqrt(x * x + y * y + z * z) / au_per_ly
+
+%{
+  name: nearest.name,
+  catalog_epoch: nearest.epoch,
+  distance_ly: distance_ly,
+  position_au: {x, y, z},
+  velocity_au_day: {vx, vy, vz}
+}
+```
+
+`starpv` (`eraStarpv`) is the second half: ICRS astrometry in, BCRS
+barycentric position (au) and velocity (au/day) out. The 100 systems nearest
+after this propagation fill a sphere about 20.4 light-years in radius.
+
+## From ICRS to cylindrical ecliptic coordinates
+
+`starpv` returns a vector in the ICRS equatorial frame. The map wants the
+J2000 ecliptic, so that the animation axis is the ecliptic pole — the same
+pole the orbit diagrams revolve about. The IAU 1976 mean obliquity of J2000
+is $\varepsilon = 23.4392911^\circ$; the rotation about $+x$ is
+
+$$
+\begin{pmatrix} x' \\ y' \\ z' \end{pmatrix}
+=
+\begin{pmatrix}
+1 & 0 & 0 \\
+0 & \cos\varepsilon & \sin\varepsilon \\
+0 & -\sin\varepsilon & \cos\varepsilon
+\end{pmatrix}
+\begin{pmatrix} x \\ y \\ z \end{pmatrix}
+$$
+
+The result is stored in _cylindrical_ coordinates, not flattened:
+
+$$
+r_{xy} = \sqrt{x'^2 + y'^2},
+\qquad
+\phi = \operatorname{atan2}(y', x'),
+\qquad
+z = z'
+$$
+
+That is the whole reason the animation can be exact. Every star already
+circles the ecliptic pole at fixed $r_{xy}$ and $z$. Rotating $\phi$ is
+uniform circular motion about that pole — a rigid rotation of the scene —
+so a single SMIL `rotate` on the unit-circle point $(\cos\phi, \sin\phi)$
+sweeps the true projected path. The orbit notebook uses the same
+unit-circle-under-`matrix()` trick; there the parameter is eccentric
+anomaly and uniform $E$ only approximates Kepler timing. Here the parameter
+_is_ the rotation angle, and there is no timing error.
+
+```elixir
+defmodule NearbyStars.Place do
+  @moduledoc false
+
+  @star_count 100
+  @au_per_ly 63_241.077
+  @deg :math.pi() / 180.0
+  @mas_to_rad :math.pi() / (180.0 * 3_600.0 * 1_000.0)
+  # IAU 1976 mean obliquity of J2000: ICRS to ecliptic, about +x.
+  @obliquity 23.4392911 * @deg
+
+  def nearest(systems, epoch) do
+    systems
+    |> Enum.map(&place(&1, epoch))
+    |> Enum.sort_by(& &1.distance)
+    |> Enum.take(@star_count)
+  end
+
+  defp place(star, epoch) do
+    ra = star.ra * @deg
+    dec = star.dec * @deg
+    pm_ra = star.pm_ra / :math.cos(dec) * @mas_to_rad
+    pm_dec = star.pm_dec * @mas_to_rad
+    parallax = star.parallax / 1_000.0
+    source_epoch = {2_451_545.0, (star.epoch - 2000.0) * 365.25}
+    scene_epoch = {2_451_545.0, Astro.Time.to_et(epoch) / 86_400.0}
+
+    {ra2, dec2, pm_ra2, pm_dec2, parallax2, radial_velocity2} =
+      unwrap(
+        Astro.Star.pmsafe(
+          ra,
+          dec,
+          pm_ra,
+          pm_dec,
+          parallax,
+          star.radial_velocity,
+          source_epoch,
+          scene_epoch
+        ),
+        :pmsafe,
+        star.name
+      )
+
+    [x, y, z | _velocity] =
+      unwrap(
+        Astro.Star.starpv(ra2, dec2, pm_ra2, pm_dec2, parallax2, radial_velocity2),
+        :starpv,
+        star.name
+      )
+
+    {ex, ey, ez} = to_ecliptic({x / @au_per_ly, y / @au_per_ly, z / @au_per_ly})
+
+    Map.merge(star, %{
+      distance: :math.sqrt(ex * ex + ey * ey + ez * ez),
+      radius_xy: :math.sqrt(ex * ex + ey * ey),
+      phase: :math.atan2(ey, ex),
+      z: ez
+    })
+  end
+
+  defp unwrap({:ok, value}, _operation, _name), do: value
+
+  defp unwrap({:ok, value, warnings}, operation, name) do
+    IO.warn("#{operation} #{name}: #{inspect(warnings)}")
+    value
+  end
+
+  defp unwrap({:error, reason}, operation, name) do
+    raise "#{operation} failed for #{name}: #{inspect(reason)}"
+  end
+
+  defp to_ecliptic({x, y, z}) do
+    cosine = :math.cos(@obliquity)
+    sine = :math.sin(@obliquity)
+    {x, y * cosine + z * sine, -y * sine + z * cosine}
+  end
+end
+
+stars = NearbyStars.Place.nearest(systems, epoch)
+{length(stars), List.first(stars).name, List.last(stars).distance}
+```
+
+## The camera
+
+The camera is the same orthographic projection the orbit diagrams use:
+rotate the scene about the ecliptic pole by `rotation` (purely cosmetic —
+it keeps interesting structure off the canvas axes), tilt it by `tilt` away
+from face-on, and drop the depth coordinate. The y-sign flips because SVG's
+y-axis points down.
+
+$$
+\begin{aligned}
+x_1 &= x\cos\psi - y\sin\psi \\
+y_1 &= x\sin\psi + y\cos\psi \\
+(X, Y) &= \bigl(x_1,\; -(y_1\cos\theta - z\sin\theta)\bigr)
+\end{aligned}
+$$
+
+The finished map uses $\psi = 15^\circ$ and $\theta = 66^\circ$, matching
+the orbit scenes on purpose: the two notebooks sit next to each other
+without a change of visual language. `scaled_project/4` is that map times
+the scene scale.
+
+```elixir
+defmodule NearbyStars.Camera do
+  @moduledoc false
+
+  # Orthographic camera: scene rotation about the ecliptic pole, camera tilt
+  # from face-on, then drop depth. The y flip converts to SVG's downward y.
+  def project({x, y, z}, rotation, tilt) do
+    x1 = x * :math.cos(rotation) - y * :math.sin(rotation)
+    y1 = x * :math.sin(rotation) + y * :math.cos(rotation)
+    {x1, -(y1 * :math.cos(tilt) - z * :math.sin(tilt))}
+  end
+
+  def scaled_project(point, scale, rotation, tilt) do
+    {x, y} = project(point, rotation, tilt)
+    {x * scale, y * scale}
+  end
+end
+```
+
+## Drawing stars and shells
+
+Each distance shell is a circle of radius $R$ ly in the ecliptic plane,
+projected by sending $\vec p = P(R, 0, 0)$ and $\vec q = P(0, R, 0)$ into
+`matrix(px py qx qy 0 0)` around `<circle r="1"/>`. Each star is the same
+trick at that star's $r_{xy}$, plus a translation $P(0, 0, z)$ so the
+cylinder height survives the tilt. The dot itself is a zero-length
+round-capped path (`M x y l .0001 0`) at $(\cos\phi, \sin\phi)$ on the unit
+circle; `vector-effect="non-scaling-stroke"` keeps the stroke in screen
+pixels so the ellipse matrix cannot stretch it.
+
+Apparent magnitude is already logarithmic in flux
+($F \propto 10^{-0.4 m}$). Mapping $m$ through a linear clamp onto stroke
+width and opacity is therefore a rough log-brightness scale, not a
+photometric one — enough to let Sirius outshine a late M dwarf without
+solving a PSF.
+
+```elixir
+defmodule NearbyStars.Format do
+  @moduledoc false
+
+  def matrix(values), do: "matrix(#{Enum.map_join(values, " ", &format(&1, 2))})"
+
+  def escape(value) do
+    value
+    |> String.replace("&", "&amp;")
+    |> String.replace("<", "&lt;")
+    |> String.replace(">", "&gt;")
+  end
+
+  def clamp(value, low, high), do: value |> max(low) |> min(high)
+
+  def format(value, 0) do
+    value
+    |> :erlang.float_to_binary(decimals: 0)
+    |> case do
+      "-0" -> "0"
+      number -> number
+    end
+  end
+
+  def format(value, decimals) do
+    value
+    |> :erlang.float_to_binary(decimals: decimals)
+    |> String.trim_trailing("0")
+    |> String.trim_trailing(".")
+    |> case do
+      "-0" -> "0"
+      number -> number
+    end
+  end
+end
+
+defmodule NearbyStars.Mark do
+  @moduledoc false
+
+  @rotation_s 90
+
+  def rotation_s, do: @rotation_s
+
+  def star(star, scale, rotation, tilt, animate?) do
+    {px, py} = NearbyStars.Camera.scaled_project({star.radius_xy, 0.0, 0.0}, scale, rotation, tilt)
+    {qx, qy} = NearbyStars.Camera.scaled_project({0.0, star.radius_xy, 0.0}, scale, rotation, tilt)
+    {ox, oy} = NearbyStars.Camera.scaled_project({0.0, 0.0, star.z}, scale, rotation, tilt)
+    transform = NearbyStars.Format.matrix([px, py, qx, qy, ox, oy])
+    width = NearbyStars.Format.clamp(4.2 - 0.22 * star.magnitude, 1.2, 4.2)
+    opacity = NearbyStars.Format.clamp(0.82 - 0.04 * star.magnitude, 0.22, 0.82)
+    x = NearbyStars.Format.format(:math.cos(star.phase), 5)
+    y = NearbyStars.Format.format(:math.sin(star.phase), 5)
+    if animate? do
+      """
+        <g transform="#{transform}">
+          <g>
+            <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="#{@rotation_s}s" repeatCount="indefinite"/>
+            <path d="M #{x} #{y} l .0001 0" stroke-width="#{NearbyStars.Format.format(width, 2)}" stroke-linecap="round" stroke-opacity="#{NearbyStars.Format.format(opacity, 2)}" vector-effect="non-scaling-stroke">
+              <title>#{NearbyStars.Format.escape(star.name)} · #{NearbyStars.Format.format(star.distance, 2)} ly</title>
+            </path>
+          </g>
+        </g>\
+    """
+    else
+      """
+        <g transform="#{transform}">
+          <path d="M #{x} #{y} l .0001 0" stroke-width="#{NearbyStars.Format.format(width, 2)}" stroke-linecap="round" stroke-opacity="#{NearbyStars.Format.format(opacity, 2)}" vector-effect="non-scaling-stroke">
+            <title>#{NearbyStars.Format.escape(star.name)} · #{NearbyStars.Format.format(star.distance, 2)} ly</title>
+          </path>
+        </g>\
+    """
+    end
+  end
+
+  def shell(light_years, scale, rotation, tilt) do
+    {px, py} = NearbyStars.Camera.scaled_project({light_years, 0.0, 0.0}, scale, rotation, tilt)
+    {qx, qy} = NearbyStars.Camera.scaled_project({0.0, light_years, 0.0}, scale, rotation, tilt)
+    matrix = NearbyStars.Format.matrix([px, py, qx, qy, 0.0, 0.0])
+    ~s(<circle r="1" transform="#{matrix}" vector-effect="non-scaling-stroke"/>)
+  end
+end
+```
+
+The renderer assembles the frame, the 5 ly shells, the pole line, the dots,
+and the labels. Hover a path for the `<title>` tooltip. Stages below call
+this with different cameras; only the last cell writes the file.
+
+```elixir
+defmodule NearbyStars.Render do
+  @moduledoc false
+
+  @center 400.0
+  @font "ui-monospace, 'JetBrains Mono', 'Fira Code', monospace"
+
+  def scene(stars, scale, rotation, tilt, opts) do
+    epoch = Keyword.fetch!(opts, :epoch)
+    animate? = Keyword.get(opts, :animate, false)
+    title = Keyword.get(opts, :title, "100 NEAREST SYSTEMS · 5 LY RINGS")
+    aria = Keyword.get(opts, :aria, "The 100 nearest stellar systems in 3D")
+    desc = Keyword.get_lazy(opts, :desc, fn -> desc(stars, epoch) end)
+    dots = Enum.map_join(stars, "\n", &NearbyStars.Mark.star(&1, scale, rotation, tilt, animate?))
+    shells = Enum.map_join([5, 10, 15, 20], "\n", &NearbyStars.Mark.shell(&1, scale, rotation, tilt))
+    f = &NearbyStars.Format.format/2
+
+    """
+    <svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="0 0 800 800" role="img" aria-label="#{aria}">
+      <desc>
+    #{desc}
+      </desc>
+      <rect x="0.5" y="0.5" width="799" height="799" rx="12" fill="#050505" stroke="#1c1c1f"/>
+      <g transform="translate(#{f.(@center, 0)} #{f.(@center, 0)})" fill="none">
+        <g stroke="#303036" stroke-width="1">
+    #{shells}
+        </g>
+        <path d="M 0 #{f.(-22 * scale, 2)} V #{f.(22 * scale, 2)}" stroke="#26262b" stroke-dasharray="2 5"/>
+        <g stroke="#e6e6e9">
+    #{dots}
+        </g>
+        <circle r="4" fill="#e25d52"/>
+        <text x="9" y="4" fill="#b7b7bf" font-family="#{@font}" font-size="10">SOL</text>
+      </g>
+      <g font-family="#{@font}" font-size="11" letter-spacing="2.5" fill="#606069">
+        <text x="28" y="36" fill="#9d9da6" font-size="12">EX_ASTRO</text>
+        <text x="772" y="36" text-anchor="end">#{Calendar.strftime(epoch, "%Y-%m-%d")} UTC</text>
+        <text x="28" y="774">#{title}</text>
+        <text x="772" y="774" text-anchor="end">ERFA · REYLÉ+ 2021</text>
+      </g>
+    </svg>
+    """
+  end
+
+  def desc(stars, epoch) do
+    furthest = NearbyStars.Format.format(List.last(stars).distance, 2)
+
+    """
+        The 100 nearest stellar systems to Sol from Reyle et al. 2021,
+        A&amp;A 650 A201, VizieR J/A+A/650/A201 tablea1 update 25-Aug-2023.
+        One representative (the brightest catalogued member) is retained per
+        system. Astrometry is propagated to #{epoch} with ERFA eraPmsafe and
+        eraStarpv through ex_astro, rotated from ICRS to the J2000 ecliptic,
+        and orthographically projected with a 66 degree camera tilt. The scene
+        revolves about the ecliptic pole once every #{NearbyStars.Mark.rotation_s()} seconds. Sol is
+        centered; the outermost system is #{furthest} light-years away.
+        Generated by examples/stars.livemd; do not edit by hand.\
+    """
+  end
+end
+```
+
+## Stage 1: the face-on view
+
+The simplest camera looks straight down the ecliptic pole: rotation 0,
+tilt 0, so the projection is just $(x, y, z) \mapsto (x, -y)$ and the drawing
+is a true top-down chart of the solar neighbourhood in the ecliptic plane.
+
+Height $z$ is invisible from here. A star 8 ly above the plane at $r_{xy} =
+3$ ly sits on the 3 ly circle, not the 8.5 ly sphere it actually occupies.
+The 5 ly rings are true circles. Scale is the same one the finished map
+uses — furthest system to 310 px — so later tilts are comparable, not
+re-fitted.
+
+```elixir
+scale = 310.0 / List.last(stars).distance
+
+face_on =
+  NearbyStars.Render.scene(stars, scale, 0.0, 0.0,
+    epoch: epoch,
+    animate: false,
+    title: "FACE-ON · ECLIPTIC PLANE",
+    aria: "Face-on map of the 100 nearest stellar systems",
+    desc:
+      "    Face-on ecliptic chart of the 100 nearest systems (tilt 0, static).\n        Generated by examples/stars.livemd."
+  )
+
+Kino.HTML.new(face_on)
+```
+
+## Stage 2: tilting the camera
+
+A face-on map is honest but flat. Tilting the camera away from the pole
+turns $z$ into a vertical screen offset, and the distance shells become
+ellipses — still exact, because the projection is still linear and the
+unit-circle `matrix()` still holds.
+
+The finished scene uses two fixed angles: the scene rotated **15°** about
+the pole and the camera tilted **66°** from face-on, the same pair as the
+orbit diagrams. The tabs below keep that 15° rotation and step the tilt
+through 0°, 33°, and 66° so the depth shows up incrementally.
+
+```elixir
+rad = :math.pi() / 180.0
+
+tilted = fn tilt_deg ->
+  NearbyStars.Render.scene(stars, scale, 15.0 * rad, tilt_deg * rad,
+    epoch: epoch,
+    animate: false,
+    title: "SOLAR NEIGHBOURHOOD · TILT #{tilt_deg}°",
+    aria: "Nearby stars at #{tilt_deg} degree camera tilt",
+    desc:
+      "    Nearby stars, scene rotated 15 deg, camera tilted #{tilt_deg} deg, static.\n        Generated by examples/stars.livemd."
+  )
+end
+
+Kino.Layout.tabs(
+  "Face-on": Kino.HTML.new(tilted.(0)),
+  "Tilted 33°": Kino.HTML.new(tilted.(33)),
+  "Tilted 66°": Kino.HTML.new(tilted.(66))
+)
+```
+
+## Stage 3: setting it in motion
+
+Animation falls out of the cylindrical placement. The dot sits at angle
+$\phi$ on the unit circle _inside_ the matrix group — so rotating that
+circle underneath the matrix sweeps the star around the projected shell at
+its true $r_{xy}$ and $z$. One SMIL `<animateTransform type="rotate">` per
+star does it, no JavaScript, and it keeps playing inside `<img>` tags and
+GitHub's image proxy, where scripts are stripped.
+
+This is a stricter result than the orbit animation. Those dots rotate
+uniformly in eccentric anomaly, which only approximates Kepler timing (the
+path and period are exact; the rate is off by up to $\pm e$). Here the
+motion _is_ a rigid rotation of the scene about the ecliptic pole: every
+star shares the same angular rate, $r_{xy}$ and $z$ never change, and there
+is no timing error. The 90 s period is a viewing choice, not a physical
+one.
+
+```elixir
+animated =
+  NearbyStars.Render.scene(stars, scale, 15.0 * rad, 66.0 * rad,
+    epoch: epoch,
+    animate: true,
+    title: "SOLAR NEIGHBOURHOOD · ANIMATED",
+    aria: "Rotating map of the 100 nearest stellar systems",
+    desc:
+      "    Nearby stars, 15 deg rotation, 66 deg tilt, revolving once every 90 s.\n        Generated by examples/stars.livemd."
+  )
+
+Kino.HTML.new(animated)
+```
+
+## The finished map
+
+The committed diagram is the stage-3 camera — 15° rotation, 66° tilt, 90 s
+revolution — with the provenance `<desc>` and the original footer. It is
+written next to this notebook.
+
+```elixir
+defmodule NearbyStars.Scene do
+  @moduledoc false
+
+  @out Path.join(__DIR__, "nearby-stars.svg")
+  @deg :math.pi() / 180.0
+  @scene_rotation 15.0 * @deg
+  @camera_tilt 66.0 * @deg
+  @fit_radius 310.0
+
+  def render(stars, epoch) do
+    scale = @fit_radius / List.last(stars).distance
+
+    svg =
+      NearbyStars.Render.scene(stars, scale, @scene_rotation, @camera_tilt,
+        epoch: epoch,
+        animate: true
+      )
+
+    File.write!(@out, svg)
+    %{path: @out, svg: svg, stars: stars, scale: scale}
+  end
+end
+
+scene = NearbyStars.Scene.render(stars, epoch)
+{length(stars), List.first(stars).name, List.last(stars).distance}
+```
+
+The nearest dozen, after propagation to the scene epoch:
+
+```elixir
+Kino.DataTable.new(
+  stars
+  |> Enum.take(12)
+  |> Enum.map(fn star ->
+    %{
+      system: star.name,
+      distance_ly: Float.round(star.distance, 2),
+      magnitude: Float.round(star.magnitude, 2),
+      z_ly: Float.round(star.z, 2)
+    }
+  end)
+)
+```
+
+The rotating map — hover a dot for the system name and distance:
+
+```elixir
+Kino.HTML.new(scene.svg)
+```
+
+```elixir
+scene.path
+```

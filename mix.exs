@@ -61,7 +61,8 @@ defmodule Astro.MixProject do
     [
       name: "ex_astro",
       maintainers: ["sgiath <astro@sgiath.dev>"],
-      files: ~w(lib LICENSE mix.exs README* CHANGELOG* c_src/*.[ch] c_src/vendor Makefile),
+      files: ~w(lib LICENSE mix.exs README* CHANGELOG* c_src/*.[ch] c_src/vendor Makefile
+           examples/README.md examples/*.livemd examples/*.svg),
       licenses: ["WTFPL", "LicenseRef-CSPICE"],
       links: %{
         "GitHub" => "https://github.com/sgiath/ex_astro",
@@ -79,7 +80,12 @@ defmodule Astro.MixProject do
       extras: [
         "README.md": [filename: "readme", title: "Overview"],
         "examples/README.md": [filename: "examples", title: "Examples"],
+        "examples/orbits.livemd": [filename: "orbits", title: "Drawing the Solar System"],
+        "examples/stars.livemd": [filename: "stars", title: "Mapping Nearby Stars"],
         "CHANGELOG.md": [filename: "changelog", title: "Changelog"]
+      ],
+      groups_for_extras: [
+        Examples: ~r/examples/
       ],
       formatters: ["html"],
       source_ref: "v#{@version}",
