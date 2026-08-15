@@ -10,6 +10,8 @@
 - normalize Julian-date datetime rounding across midnight to avoid invalid hour 24 values
 - remove hidden SPICE support result caps for `spkobj`, `bodvcd`, and `bodvrd`
 - tighten shared native utility include, allocation, and warning hygiene
+- consolidate native wrappers into one NIF with a single atomic CSPICE kernel pool
+- vendor the CSPICE N0067 Linux headers and static libraries for offline builds
 
 ## v0.2.2 (2024-10-01)
 

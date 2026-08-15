@@ -26,6 +26,9 @@ It is a bit more complicated then normal lib so pay attention:
 
 - instal ERFA library
   - <https://github.com/liberfa/erfa?tab=readme-ov-file#building-and-installing-erfa>
+- use `x86_64-linux`; CSPICE N0067 is bundled, so compilation does not
+  download the toolkit. The included Nix flake supplies GCC, ERFA, and GMP on
+  NixOS.
 - add `ex_astro` to `mix.exs`
 
 ```elixir
@@ -66,9 +69,9 @@ Astro.Kernel.loaded()
 ```
 
 Missing configured files log a warning instead of preventing application
-startup, so they can be downloaded and loaded later. Kernel mutations update
-the library's independent NIF pools sequentially, not atomically; perform them
-during startup or another period when no Astro calls are running.
+startup, so they can be downloaded and loaded later. Kernel mutations are
+atomic against the library's single CSPICE pool and safe while other Astro
+calls are running.
 
 ## Time API
 

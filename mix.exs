@@ -61,8 +61,8 @@ defmodule Astro.MixProject do
     [
       name: "ex_astro",
       maintainers: ["sgiath <astro@sgiath.dev>"],
-      files: ~w(lib LICENSE mix.exs README* CHANGELOG* c_src/*.[ch] Makefile),
-      licenses: ["WTFPL"],
+      files: ~w(lib LICENSE mix.exs README* CHANGELOG* c_src/*.[ch] c_src/vendor Makefile),
+      licenses: ["WTFPL", "LicenseRef-CSPICE"],
       links: %{
         "GitHub" => "https://github.com/sgiath/ex_astro",
         "SPICE" => "https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/index.html",

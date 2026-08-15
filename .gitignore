@@ -25,8 +25,8 @@ ex_astro-*.tar
 # Temporary files, for example, from tests.
 /tmp/
 
-# SPICE library
-/c_src/cspice/
+# generated C objects
+/c_src/*.o
 
 # kernels
 /priv/kernels/

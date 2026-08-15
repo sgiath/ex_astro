@@ -62,7 +62,6 @@ defmodule Astro.Ephemeris do
   to 26 bytes, and aberration correction names accept up to 5 bytes. Invalid
   native strings raise `ArgumentError`.
   """
-  use Astro.NIF, "ephemeris"
 
   @doc """
   Determine the apparent, true, or geometric state of a body with respect to another body relative
@@ -158,10 +157,8 @@ defmodule Astro.Ephemeris do
           abcorr :: String.t(),
           observer :: String.t()
         ) :: {:ok, state :: [float()], lt :: float()} | {:error, String.t()}
-  def spkezr(target, et, ref_plane, ab_corr, observer)
-      when is_binary(target) and is_float(et) and is_binary(ref_plane) and is_binary(ab_corr) and
-             is_binary(observer),
-      do: :erlang.nif_error({:error, :not_loaded})
+  def spkezr(target, et, ref_plane, ab_corr, observer),
+    do: Astro.NIF.spkezr(target, et, ref_plane, ab_corr, observer)
 
   @doc """
   Determine the apparent, true, or geometric state of a body with respect to another body relative
@@ -191,8 +188,8 @@ defmodule Astro.Ephemeris do
           aberration_correction :: String.t(),
           observer :: integer()
         ) :: {:ok, state :: [float()], lt :: float()} | {:error, String.t()}
-  def spkez(_et, _target, _observer, _ref_plane, _ab_corr),
-    do: :erlang.nif_error({:error, :not_loaded})
+  def spkez(target, et, ref_plane, ab_corr, observer),
+    do: Astro.NIF.spkez(target, et, ref_plane, ab_corr, observer)
 
   @doc """
   Compute the geometric state (position and velocity) of a target body relative to an observing
@@ -218,8 +215,8 @@ defmodule Astro.Ephemeris do
           ref_plane :: String.t(),
           observer :: integer()
         ) :: {:ok, state :: [float()], lt :: float()} | {:error, String.t()}
-  def spkgeo(_et, _target, _observer, _ref_plane),
-    do: :erlang.nif_error({:error, :not_loaded})
+  def spkgeo(target, et, ref_plane, observer),
+    do: Astro.NIF.spkgeo(target, et, ref_plane, observer)
 
   @doc """
   Determine conic elements from state
@@ -259,7 +256,7 @@ defmodule Astro.Ephemeris do
   """
   @spec oscelt(state :: [float()], et :: float(), mu :: float()) ::
           {:ok, elts :: [float()]} | {:error, String.t()}
-  def oscelt(_state, _et, _mu), do: :erlang.nif_error({:error, :not_loaded})
+  def oscelt(state, et, mu), do: Astro.NIF.oscelt(state, et, mu)
 
   @doc """
   Determine state from conic elements
@@ -302,5 +299,5 @@ defmodule Astro.Ephemeris do
   """
   @spec conics(elts :: [float()], et :: float()) ::
           {:ok, state :: [float()]} | {:error, String.t()}
-  def conics(_elts, _et), do: :erlang.nif_error({:error, :not_loaded})
+  def conics(elts, et), do: Astro.NIF.conics(elts, et)
 end

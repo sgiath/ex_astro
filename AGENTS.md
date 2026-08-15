@@ -47,8 +47,7 @@ Use this file to understand the local workflow and style.
 - `Astro.Application` reads `config :ex_astro, :spice_kernels, [...]` at
   application startup
 - `Astro.Kernel` loads, unloads, and lists kernels at runtime
-- Kernel mutations fan out sequentially across independent NIF pools; only
-  mutate during startup or another quiescent period
+- Kernel mutations are atomic against the single CSPICE pool and safe at runtime
 - The `mix astro.kernels` task writes to `priv/kernels/`
 
 <!-- BACKLOG.MD MCP GUIDELINES START -->

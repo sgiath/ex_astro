@@ -4,7 +4,7 @@ defmodule Astro.KernelTest do
   @runtime_kernel "test/fixtures/kernels/ex_astro_test_runtime.tpc"
   @partial_kernel "test/fixtures/kernels/ex_astro_test_partial.tm"
 
-  test "loads and unloads a kernel across every NIF pool" do
+  test "loads and unloads a kernel" do
     path = Path.expand(@runtime_kernel)
     on_exit(fn -> Astro.Kernel.unload(path) end)
 
@@ -13,9 +13,27 @@ defmodule Astro.KernelTest do
     assert :ok = Astro.Kernel.load(path)
     assert {:ok, [42.0]} = Astro.Support.bodvcd(100_002, "RUNTIME")
     assert path in Astro.Kernel.loaded()
-    assert {:ok, time_kernels} = Astro.Time.NIF.kernel_list()
-    assert path in time_kernels
 
+    assert :ok = Astro.Kernel.unload(path)
+    assert {:error, _reason} = Astro.Support.bodvcd(100_002, "RUNTIME")
+    refute path in Astro.Kernel.loaded()
+  end
+
+  test "concurrent native furnishes of one path remain idempotent" do
+    path = Path.expand(@runtime_kernel)
+    unload_repeatedly(path, 32)
+    on_exit(fn -> unload_repeatedly(path, 32) end)
+
+    results =
+      1..32
+      |> Task.async_stream(fn _ -> Astro.NIF.kernel_furnsh(path) end,
+        max_concurrency: 32,
+        ordered: false,
+        timeout: 10_000
+      )
+      |> Enum.to_list()
+
+    assert Enum.all?(results, &match?({:ok, :ok}, &1))
     assert :ok = Astro.Kernel.unload(path)
     assert {:error, _reason} = Astro.Support.bodvcd(100_002, "RUNTIME")
     refute path in Astro.Kernel.loaded()
@@ -29,7 +47,7 @@ defmodule Astro.KernelTest do
     assert Astro.Kernel.loaded() == loaded
   end
 
-  test "restores the existing pool after a partially failed meta-kernel load" do
+  test "restores loaded kernels after a partially failed meta-kernel load" do
     loaded = Astro.Kernel.loaded()
     path = Path.expand(@partial_kernel)
     on_exit(fn -> Astro.Kernel.unload(path) end)
@@ -95,6 +113,10 @@ defmodule Astro.KernelTest do
     path = Path.expand("test/fixtures/kernels/ex_astro_test_many_values.tpc")
 
     assert path in Astro.Kernel.loaded()
+  end
+
+  defp unload_repeatedly(path, count) do
+    Enum.each(1..count, fn _ -> Astro.Kernel.unload(path) end)
   end
 
   defp write_runtime_kernel(path) do

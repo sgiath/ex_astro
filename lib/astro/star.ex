@@ -22,8 +22,6 @@ defmodule Astro.Star do
       6
   """
 
-  use Astro.NIF, "star"
-
   @type julian_date :: {float(), float()}
   @type catalog_entry :: {float(), float(), float(), float(), float(), float()}
   @type state_vector :: [float()]
@@ -84,7 +82,7 @@ defmodule Astro.Star do
         ) :: result(catalog_entry())
   def pmsafe(ra, dec, pmr, pmd, px, rv, ep1, ep2) do
     ra
-    |> pmsafe_nif(dec, pmr, pmd, px, rv, ep1, ep2)
+    |> Astro.NIF.pmsafe(dec, pmr, pmd, px, rv, ep1, ep2)
     |> warning_result(:system_error)
   end
 
@@ -123,7 +121,7 @@ defmodule Astro.Star do
   @spec starpv(float(), float(), float(), float(), float(), float()) :: result(state_vector())
   def starpv(ra, dec, pmr, pmd, px, rv) do
     ra
-    |> starpv_nif(dec, pmr, pmd, px, rv)
+    |> Astro.NIF.starpv(dec, pmr, pmd, px, rv)
     |> warning_result(:system_error)
   end
 
@@ -160,21 +158,13 @@ defmodule Astro.Star do
   """
   @spec pvstar(state_vector()) :: {:ok, catalog_entry()} | {:error, atom()}
   def pvstar(pv) do
-    case pvstar_nif(pv) do
+    case Astro.NIF.pvstar(pv) do
       {:ok, value, 0} -> {:ok, value}
       {:ok, _value, -1} -> {:error, :superluminal_speed}
       {:ok, _value, -2} -> {:error, :null_position_vector}
       {:ok, _value, _status} -> {:error, :system_error}
     end
   end
-
-  defp pmsafe_nif(_ra, _dec, _pmr, _pmd, _px, _rv, _ep1, _ep2),
-    do: :erlang.nif_error({:error, :not_loaded})
-
-  defp starpv_nif(_ra, _dec, _pmr, _pmd, _px, _rv),
-    do: :erlang.nif_error({:error, :not_loaded})
-
-  defp pvstar_nif(_pv), do: :erlang.nif_error({:error, :not_loaded})
 
   defp warning_result({:ok, value, 0}, _negative_reason), do: {:ok, value}
 

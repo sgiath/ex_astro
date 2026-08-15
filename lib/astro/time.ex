@@ -54,7 +54,7 @@ defmodule Astro.Time do
       0.0
   """
 
-  alias Astro.Time.NIF
+  alias Astro.NIF
 
   @j2000 2_451_545.0
 

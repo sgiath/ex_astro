@@ -1,7 +1,8 @@
 #include "utils.h"
+#include "nifs.h"
 
-static ERL_NIF_TERM
-pmsafe(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
+ERL_NIF_TERM
+exa_nif_pmsafe(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
   double ra1, dec1, pmr1, pmd1, px1, rv1;
   double ep1a, ep1b, ep2a, ep2b;
@@ -39,11 +40,11 @@ pmsafe(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
                            enif_make_double(env, px2),
                            enif_make_double(env, rv2));
 
-  return ok_result2(env, value, enif_make_int(env, status));
+  return exa_ok_result2(env, value, enif_make_int(env, status));
 }
 
-static ERL_NIF_TERM
-starpv(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
+ERL_NIF_TERM
+exa_nif_starpv(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
   double ra, dec, pmr, pmd, px, rv;
   double pv[2][3] = {{0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}};
@@ -59,20 +60,20 @@ starpv(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 
   status = eraStarpv(ra, dec, pmr, pmd, px, rv, pv);
 
-  return ok_result2(env,
-                    make_list(env, &pv[0][0], 6),
+  return exa_ok_result2(env,
+                    exa_make_list(env, &pv[0][0], 6),
                     enif_make_int(env, status));
 }
 
-static ERL_NIF_TERM
-pvstar(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
+ERL_NIF_TERM
+exa_nif_pvstar(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
   double pv[2][3];
   double ra = 0.0, dec = 0.0, pmr = 0.0, pmd = 0.0, px = 0.0, rv = 0.0;
   int status;
   ERL_NIF_TERM value;
 
-  if (!load_list(env, argv[0], 6, &pv[0][0]))
+  if (!exa_load_list(env, argv[0], 6, &pv[0][0]))
     return enif_make_badarg(env);
 
   status = eraPvstar(pv, &ra, &dec, &pmr, &pmd, &px, &rv);
@@ -85,21 +86,5 @@ pvstar(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
                            enif_make_double(env, px),
                            enif_make_double(env, rv));
 
-  return ok_result2(env, value, enif_make_int(env, status));
+  return exa_ok_result2(env, value, enif_make_int(env, status));
 }
-
-/*
- * Scheduler policy:
- * - Shared kernel-management entries (furnsh/unload/kclear) from utils.h
- *   are dirty IO jobs; kernel_list stays on a normal scheduler.
- * - ERFA-only star conversions are bounded numeric work and remain normal
- *   scheduler NIFs.
- */
-static ErlNifFunc nif_funcs[] = {
-    EX_ASTRO_KERNEL_NIF_FUNCS,
-    {"pmsafe_nif", 8, pmsafe, 0},
-    {"starpv_nif", 6, starpv, 0},
-    {"pvstar_nif", 1, pvstar, 0},
-};
-
-ERL_NIF_INIT(Elixir.Astro.Star, nif_funcs, &load, NULL, &upgrade, &unload)
