@@ -1,4 +1,6 @@
-# Example: Drawing the Solar System
+# Examples
+
+## Drawing the Solar System
 
 [`orbits.exs`](https://github.com/sgiath/ex_astro/blob/master/examples/orbits.exs)
 is a self-contained script that turns JPL ephemerides into SVG orbit diagrams using `ex_astro`.
@@ -15,7 +17,7 @@ of the body at the epoch, computed from the same DE440 ephemeris data that JPL
 uses. Eccentricities, inclinations, and node/periapsis orientations are true;
 the dots sit at the true positions and revolve with true period ratios.
 
-## Running It
+### Running It
 
 ```bash
 elixir orbits.exs
@@ -26,9 +28,9 @@ on first run (sha256-verified), then writes `solar-system.svg` and
 `inner-system.svg` next to itself. The NIF build needs a C toolchain, liberfa
 and libgmp at link time - inside this repo's flake: `nix develop -c elixir orbits.exs`.
 
-## How the Library Is Used
+### How the Library Is Used
 
-### 1. Load kernels at runtime
+#### 1. Load kernels at runtime
 
 SPICE reads everything - positions, masses, reference frames - from kernel
 files. Install the library first, download the files with `Req`, then load each
@@ -52,7 +54,7 @@ digests, and loads them after `Mix.install/2`. In a regular Mix project,
 the paths under `config :ex_astro, :spice_kernels, [...]` to load them when the
 application starts.
 
-### 2. Convert the epoch to ephemeris time
+#### 2. Convert the epoch to ephemeris time
 
 SPICE functions take _ephemeris time_: TDB seconds past J2000.
 `Astro.Time.to_et/1` performs the UTC -> TAI -> TT -> TDB chain:
@@ -64,7 +66,7 @@ et = Astro.Time.to_et(~U[2026-08-14 00:00:00Z])
 Internally, the conversion uses ERFA/SOFA two-part Julian Dates to preserve
 sub-microsecond precision instead of collapsing the epoch to a single float.
 
-### 3. Ask for a state vector
+#### 3. Ask for a state vector
 
 `Astro.Ephemeris.spkezr/5` returns the position and velocity of one body
 relative to another, in any SPICE reference frame. Bodies are named by NAIF ID
@@ -78,7 +80,7 @@ by name (`"EARTH"` works too - see `Astro.Support.bodn2c/1`):
 # units: km and km/s
 ```
 
-### 4. Derive and use the osculating orbit
+#### 4. Derive and use the osculating orbit
 
 `Astro.Orbit.osculating/4` combines the geometric state with the observer's
 gravitational parameter from the loaded PCK. It returns named elements instead
@@ -100,7 +102,7 @@ derived conic and Kepler calculations; the remaining example code projects
 each ellipse orthographically and emits it as a unit circle under a single SVG
 `matrix()` transform.
 
-## Going Further
+### Going Further
 
 The same pattern scales to any body pair the loaded kernels cover:
 
@@ -112,3 +114,50 @@ The same pattern scales to any body pair the loaded kernels cover:
   the observer.
 - **Positions over time** - call `spkezr/5` in a loop over `et` values to
   trace trajectories instead of osculating snapshots.
+
+
+## Mapping Nearby Stars
+
+[`stars.exs`](https://github.com/sgiath/ex_astro/blob/master/examples/stars.exs)
+generates a rotating three-dimensional map of Sol and the 100 nearest
+catalogued stellar systems.
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/sgiath/ex_astro/master/examples/nearby-stars.svg" width="72%" alt="Rotating 3D map of the 100 nearest stellar systems, centered on Sol"/>
+</p>
+
+Run it the same way as the orbit example:
+
+```bash
+elixir stars.exs
+```
+
+On first run it downloads the 25 August 2023 update of table A1 from
+[Reylé et al. 2021](https://cdsarc.cds.unistra.fr/ftp/cats/J/A+A/650/A201/ReadMe),
+_The 10 parsec sample in the Gaia era_, to
+`~/.cache/ex_astro/catalogs/`. The script verifies the catalog's SHA-256 digest
+and writes `nearby-stars.svg` next to itself.
+
+Planets are removed and multiple stars are collapsed to one representative per
+catalogued system. The representative with the brightest available V or Gaia
+magnitude supplies the dot brightness. The 100 systems nearest after propagation
+to the scene epoch fill a sphere about 20.4 light-years in radius.
+
+The astronomical conversion is performed entirely through `Astro.Star`:
+
+```elixir
+# Propagate catalog coordinates and motion from their source epoch.
+{:ok, {ra, dec, pm_ra, pm_dec, parallax, radial_velocity}} =
+  Astro.Star.pmsafe(ra, dec, pm_ra, pm_dec, parallax, radial_velocity, source_epoch, scene_epoch)
+
+# Convert the propagated entry to a BCRS Cartesian state in au and au/day.
+{:ok, [x, y, z, vx, vy, vz]} =
+  Astro.Star.starpv(ra, dec, pm_ra, pm_dec, parallax, radial_velocity)
+```
+
+The remaining code rotates each BCRS position into the J2000 ecliptic frame.
+Instead of flattening the data once, it retains cylindrical coordinates: every
+star moves around the ecliptic pole at its true radius and height. An
+orthographic camera turns that motion into an ellipse in the SVG, making the
+relative depth visible as the whole scene revolves. Hovering a dot shows the
+system name and distance.

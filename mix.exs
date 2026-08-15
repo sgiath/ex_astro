@@ -78,7 +78,7 @@ defmodule Astro.MixProject do
       api_reference: false,
       extras: [
         "README.md": [filename: "readme", title: "Overview"],
-        "examples/README.md": [filename: "orbits-example", title: "Example: Orbit Diagrams"],
+        "examples/README.md": [filename: "examples", title: "Examples"],
         "CHANGELOG.md": [filename: "changelog", title: "Changelog"]
       ],
       formatters: ["html"],
