@@ -1,6 +1,17 @@
 # Mapping Nearby Stars
 
-[![Run in Livebook](https://livebook.dev/badge/v1/blue.svg)](https://livebook.dev/run?url=https%3A%2F%2Fgithub.com%2Fsgiath%2Fex_astro%2Fblob%2Fmaster%2Fexamples%2Fstars.livemd)
+```elixir
+ex_astro =
+  if File.exists?(Path.expand("../mix.exs", __DIR__)) do
+    {:ex_astro, path: Path.expand("..", __DIR__)}
+  else
+    {:ex_astro, "~> 0.3"}
+  end
+
+Mix.install([ex_astro, {:kino, "~> 0.16"}])
+```
+
+## Section
 
 This notebook turns a 10-parsec star catalog into a rotating SVG map using
 `ex_astro`. Everything astronomical in it — proper-motion propagation,
@@ -31,17 +42,6 @@ next to itself.
 
 The NIF build needs a C toolchain and liberfa at link time — inside this
 repo's flake: `nix develop`, then open the notebook in Livebook.
-
-```elixir
-ex_astro =
-  if File.exists?(Path.expand("../mix.exs", __DIR__)) do
-    {:ex_astro, path: Path.expand("..", __DIR__)}
-  else
-    {:ex_astro, "~> 0.3"}
-  end
-
-Mix.install([ex_astro, {:kino, "~> 0.16"}])
-```
 
 ## Load the 10 parsec catalog
 
@@ -207,9 +207,9 @@ Epochs are two-part TDB Julian Dates `{jd1, jd2}` — the same form
 float on a number near $2.45 \times 10^6$. Both calls here pin `jd1` at
 J2000.0 ($2451545.0$) and put the offset in `jd2`:
 
-- source: $(t_{\mathrm{yr}} - 2000) \times 365.25$ days from the catalog
+* source: $(t_{\mathrm{yr}} - 2000) \times 365.25$ days from the catalog
   epoch
-- scene: `Astro.Time.to_et(epoch) / 86400` — ET seconds past J2000, as days
+* scene: `Astro.Time.to_et(epoch) / 86400` — ET seconds past J2000, as days
 
 The catalog's `pmRA` is already the _projected_ rate
 $\mu_{\alpha*} = \dot\alpha \cos\delta$, which is what you plot on the sky.
@@ -293,8 +293,7 @@ pole the orbit diagrams revolve about. The IAU 1976 mean obliquity of J2000
 is $\varepsilon = 23.4392911^\circ$; the rotation about $+x$ is
 
 $$
-\begin{pmatrix} x' \\ y' \\ z' \end{pmatrix}
-=
+\begin{pmatrix} x' \\ y' \\ z' \end{pmatrix} =
 \begin{pmatrix}
 1 & 0 & 0 \\
 0 & \cos\varepsilon & \sin\varepsilon \\

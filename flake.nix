@@ -20,7 +20,6 @@
                 gmp
                 pkg-config
                 prettier
-                livebook
               ];
 
               env = {

@@ -1,6 +1,17 @@
 # Drawing the Solar System
 
-[![Run in Livebook](https://livebook.dev/badge/v1/blue.svg)](https://livebook.dev/run?url=https%3A%2F%2Fgithub.com%2Fsgiath%2Fex_astro%2Fblob%2Fmaster%2Fexamples%2Forbits.livemd)
+```elixir
+ex_astro =
+  if File.exists?(Path.expand("../mix.exs", __DIR__)) do
+    {:ex_astro, path: Path.expand("..", __DIR__)}
+  else
+    {:ex_astro, "~> 0.3"}
+  end
+
+Mix.install([ex_astro, {:kino, "~> 0.16"}])
+```
+
+## Section
 
 This notebook turns JPL ephemerides into SVG orbit diagrams using `ex_astro`.
 Everything astronomical in it — the time-scale conversions, the body states,
@@ -30,28 +41,17 @@ The first evaluation downloads about 92 MB of SPICE kernels to
 build needs a C toolchain, liberfa, and libgmp at link time — inside this
 repo's flake: `nix develop`, then open the notebook in Livebook.
 
-```elixir
-ex_astro =
-  if File.exists?(Path.expand("../mix.exs", __DIR__)) do
-    {:ex_astro, path: Path.expand("..", __DIR__)}
-  else
-    {:ex_astro, "~> 0.3"}
-  end
-
-Mix.install([ex_astro, {:kino, "~> 0.16"}])
-```
-
 ## Load kernels at runtime
 
 SPICE reads everything — positions, masses, reference frames — from kernel
 files. This notebook needs four:
 
-- `de440s.bsp` — an _SPK_ (ephemeris) kernel: Chebyshev polynomials for the
+* `de440s.bsp` — an _SPK_ (ephemeris) kernel: Chebyshev polynomials for the
   positions of the Sun, the planetary barycenters, and the Moon, 1849–2150
-- `gm_de440.tpc` — a text _PCK_ (constants) kernel: the gravitational
+* `gm_de440.tpc` — a text _PCK_ (constants) kernel: the gravitational
   parameter $GM$ of each of those bodies
-- `codes_300ast_20100725.bsp` — an SPK with the 300 largest asteroids
-- `codes_300ast_20100725.tf` — the frame definitions that asteroid SPK
+* `codes_300ast_20100725.bsp` — an SPK with the 300 largest asteroids
+* `codes_300ast_20100725.tf` — the frame definitions that asteroid SPK
   requires
 
 The cell below streams missing files to disk with `Req`, verifies their
@@ -150,12 +150,12 @@ SPICE functions take _ephemeris time_ (ET): TDB seconds past the J2000 epoch.
 Getting there from a UTC timestamp is a chain of three corrections, each with
 a physical reason:
 
-- **UTC → TAI** — undo the leap seconds. TAI is what atomic clocks actually
+* **UTC → TAI** — undo the leap seconds. TAI is what atomic clocks actually
   count; UTC is TAI plus an integer offset that changes when the IERS says so.
-- **TAI → TT** — add the fixed 32.184 s. Terrestrial Time is the ideal clock
+* **TAI → TT** — add the fixed 32.184 s. Terrestrial Time is the ideal clock
   on the geoid; the offset is historical, inherited from the old Ephemeris
   Time scale.
-- **TT → TDB** — apply the relativistic periodic terms (< 2 ms). A clock at
+* **TT → TDB** — apply the relativistic periodic terms (< 2 ms). A clock at
   the solar-system barycenter ticks at a slightly different rate than one on
   Earth, modulated by Earth's orbital motion.
 
@@ -218,15 +218,15 @@ above), reads the observer's gravitational parameter from the loaded PCK, and
 converts with SPICE's `oscelt`. The struct fields follow SPICE's element
 order:
 
-| Field   | Symbol   | Meaning                                                         |
-| ------- | -------- | --------------------------------------------------------------- |
+| Field   | Symbol   | Meaning                                                           |
+| ------- | -------- | ----------------------------------------------------------------- |
 | `rp`    | $r_p$    | periapsis radius, km — the closest-approach distance            |
 | `ecc`   | $e$      | eccentricity — 0 circle, < 1 ellipse, 1 parabola, > 1 hyperbola |
-| `inc`   | $i$      | inclination against the frame's x-y plane, rad                  |
-| `lnode` | $\Omega$ | longitude of the ascending node, rad                            |
-| `argp`  | $\omega$ | argument of periapsis, rad                                      |
-| `m0`    | $M_0$    | mean anomaly at epoch, rad                                      |
-| `t0`    | $t_0$    | epoch, ET seconds                                               |
+| `inc`   | $i$      | inclination against the frame's x-y plane, rad                    |
+| `lnode` | $\Omega$ | longitude of the ascending node, rad                              |
+| `argp`  | $\omega$ | argument of periapsis, rad                                        |
+| `m0`    | $M_0$    | mean anomaly at epoch, rad                                        |
+| `t0`    | $t_0$    | epoch, ET seconds                                                 |
 | `mu`    | $\mu$    | gravitational parameter $GM$ of the central body, km³/s²        |
 
 Two of these deserve a note. SPICE stores the periapsis radius rather than
@@ -278,11 +278,11 @@ Where the body sits _on_ the ellipse at a given time is the classic Kepler
 problem, and it involves three different angles ("anomalies"), each earning
 its keep:
 
-- **Mean anomaly** $M$ — a fictitious angle that grows _linearly_ with time.
+* **Mean anomaly** $M$ — a fictitious angle that grows _linearly_ with time.
   Trivial to propagate, but points nowhere physical.
-- **Eccentric anomaly** $E$ — the angle in the ellipse's _auxiliary circle_
+* **Eccentric anomaly** $E$ — the angle in the ellipse's _auxiliary circle_
   parametrization. This is the geometric one: it will drive the drawing.
-- **True anomaly** $\nu$ — the actual angle from periapsis to the body, as
+* **True anomaly** $\nu$ — the actual angle from periapsis to the body, as
   seen from the focus. This is where the body physically is.
 
 The mean motion comes from Kepler's third law, and the mean anomaly is then
@@ -362,10 +362,10 @@ $\omega$ within the plane to point at periapsis.
 `Astro.Orbit.perifocal_basis/1` multiplies the three rotations out and
 returns the resulting orthonormal triad:
 
-- $\hat u$ — unit vector toward **periapsis**
-- $\hat v$ — 90° ahead of $\hat u$ in the orbital plane, along the direction
+* $\hat u$ — unit vector toward **periapsis**
+* $\hat v$ — 90° ahead of $\hat u$ in the orbital plane, along the direction
   of motion at periapsis
-- $\hat w = \hat u \times \hat v$ — the orbit normal
+* $\hat w = \hat u \times \hat v$ — the orbit normal
 
 The checks below confirm the triad is orthonormal and that the normal's
 z-component equals $\cos i$ — the orbit normal makes exactly the inclination
@@ -427,10 +427,10 @@ keep twice: once for Kepler timing, once as the drawing parameter.
 
 Two SVG details make this practical:
 
-- `vector-effect="non-scaling-stroke"` keeps stroke widths in screen pixels.
+* `vector-effect="non-scaling-stroke"` keeps stroke widths in screen pixels.
   Without it the matrix would scale strokes anisotropically and every ring
   would render thicker along its major axis.
-- Each body dot is a zero-length path (`M x y l .0001 0`) with a round
+* Each body dot is a zero-length path (`M x y l .0001 0`) with a round
   linecap, so its on-screen size is just its stroke width — immune to the
   ellipse matrix for the same reason.
 
@@ -792,14 +792,14 @@ Kino.HTML.new(animated)
 The two committed diagrams are just the pipeline above with body lists and
 one extra idea each:
 
-- **The nine planets** — all planets plus Pluto. At true scale this is
+* **The nine planets** — all planets plus Pluto. At true scale this is
   hopeless: Pluto's semi-major axis is about 100× Mercury's, so the inner
   system would vanish into a few pixels. Instead each conic is uniformly
   rescaled to $r \sim a^{0.4}$, which compresses the ratio to about 6.3×.
   Because the rescaling is uniform _per orbit_, every eccentricity,
   inclination, and orientation stays true — only the relative sizes lie,
   and the `<desc>` says so.
-- **Inner system + main belt** — the rocky planets and the five largest
+* **Inner system + main belt** — the rocky planets and the five largest
   main-belt asteroids (from the CODES asteroid kernel), at true scale
   (`compress: 1.0`). Watch Pallas: its 35° inclination is the most dramatic
   out-of-plane excursion in either scene.
@@ -933,11 +933,11 @@ Kino.Layout.tabs(
 
 The same pattern scales to any body pair the loaded kernels cover:
 
-- **Moon systems** — load `jup365.bsp` or `sat441.bsp` and center scenes on
+* **Moon systems** — load `jup365.bsp` or `sat441.bsp` and center scenes on
   `"599"` (Jupiter) or `"699"` (Saturn) to draw the Galilean or Saturnian
   moons. Both kernels are in the `mix astro.kernels` default set.
-- **Spacecraft-style geometry** — pass `"LT+S"` instead of `"NONE"` to get
+* **Spacecraft-style geometry** — pass `"LT+S"` instead of `"NONE"` to get
   apparent (light-time and stellar-aberration corrected) states as seen by
   the observer.
-- **Positions over time** — call `spkezr/5` in a loop over `et` values to
+* **Positions over time** — call `spkezr/5` in a loop over `et` values to
   trace trajectories instead of osculating snapshots.
