@@ -157,8 +157,7 @@ defmodule Astro.Ephemeris do
           abcorr :: String.t(),
           observer :: String.t()
         ) :: {:ok, state :: [float()], lt :: float()} | {:error, String.t()}
-  def spkezr(target, et, ref_plane, ab_corr, observer),
-    do: Astro.NIF.spkezr(target, et, ref_plane, ab_corr, observer)
+  def spkezr(target, et, ref_plane, ab_corr, observer), do: Astro.NIF.spkezr(target, et, ref_plane, ab_corr, observer)
 
   @doc """
   Determine the apparent, true, or geometric state of a body with respect to another body relative
@@ -188,8 +187,7 @@ defmodule Astro.Ephemeris do
           aberration_correction :: String.t(),
           observer :: integer()
         ) :: {:ok, state :: [float()], lt :: float()} | {:error, String.t()}
-  def spkez(target, et, ref_plane, ab_corr, observer),
-    do: Astro.NIF.spkez(target, et, ref_plane, ab_corr, observer)
+  def spkez(target, et, ref_plane, ab_corr, observer), do: Astro.NIF.spkez(target, et, ref_plane, ab_corr, observer)
 
   @doc """
   Compute the geometric state (position and velocity) of a target body relative to an observing
@@ -215,8 +213,7 @@ defmodule Astro.Ephemeris do
           ref_plane :: String.t(),
           observer :: integer()
         ) :: {:ok, state :: [float()], lt :: float()} | {:error, String.t()}
-  def spkgeo(target, et, ref_plane, observer),
-    do: Astro.NIF.spkgeo(target, et, ref_plane, observer)
+  def spkgeo(target, et, ref_plane, observer), do: Astro.NIF.spkgeo(target, et, ref_plane, observer)
 
   @doc """
   Determine conic elements from state

@@ -172,8 +172,7 @@ defmodule Astro.Star do
     {:ok, value, warnings(status)}
   end
 
-  defp warning_result({:ok, _value, _status}, negative_reason),
-    do: {:error, negative_reason}
+  defp warning_result({:ok, _value, _status}, negative_reason), do: {:error, negative_reason}
 
   defp warnings(status) do
     [

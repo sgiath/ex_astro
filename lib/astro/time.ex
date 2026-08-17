@@ -64,8 +64,8 @@ defmodule Astro.Time do
   @type radians :: float()
   @type kilometers :: float()
   @type gregorian_datetime_tuple ::
-          {year :: integer(), month :: integer(), day :: integer(), hour :: integer(),
-           minute :: integer(), second :: integer(), microsecond :: integer()}
+          {year :: integer(), month :: integer(), day :: integer(), hour :: integer(), minute :: integer(),
+           second :: integer(), microsecond :: integer()}
   @type uniform_time_system :: String.t()
 
   defguard is_jd(jd)

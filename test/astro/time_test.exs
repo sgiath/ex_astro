@@ -17,7 +17,7 @@ defmodule Astro.TimeTest do
     converted = Astro.Time.to_datetime(julian_date)
 
     assert_in_delta Astro.Time.jd_to_float(julian_date), 2_451_545.024260688, 1.0e-12
-    assert NaiveDateTime.diff(converted, datetime, :microsecond) |> abs() <= 10
+    assert converted |> NaiveDateTime.diff(datetime, :microsecond) |> abs() <= 10
   end
 
   test "jd2dt rounds fractional day carry across midnight to the next date" do
@@ -75,7 +75,7 @@ defmodule Astro.TimeTest do
       |> Astro.Time.to_et()
       |> Astro.Time.from_et()
 
-    assert NaiveDateTime.diff(converted, datetime, :microsecond) |> abs() <= 10
+    assert converted |> NaiveDateTime.diff(datetime, :microsecond) |> abs() <= 10
   end
 
   test "jd helpers provide explicit float interop" do

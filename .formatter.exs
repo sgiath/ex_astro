@@ -1,4 +1,4 @@
 [
-  import_deps: [],
-  inputs: ["*.exs", "{config,lib,test}/**/*.{ex,exs}"]
+  inputs: ["*.exs", "{config,lib,test}/**/*.{ex,exs}"],
+  plugins: [Styler]
 ]

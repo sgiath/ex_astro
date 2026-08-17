@@ -16,8 +16,7 @@ defmodule Astro.NIF do
 
   @spec dtf2d(integer(), integer(), integer(), integer(), integer(), float()) ::
           {float(), float()}
-  def dtf2d(_year, _month, _day, _hour, _min, _sec),
-    do: :erlang.nif_error({:error, :not_loaded})
+  def dtf2d(_year, _month, _day, _hour, _min, _sec), do: :erlang.nif_error({:error, :not_loaded})
 
   @spec jd2dt(float(), float()) ::
           {integer(), integer(), integer(), integer(), integer(), integer(), integer()}
@@ -68,14 +67,11 @@ defmodule Astro.NIF do
   @spec day2sec(float(), float()) :: float()
   def day2sec(_jd1, _jd2), do: :erlang.nif_error({:error, :not_loaded})
 
-  def spkezr(_target, _et, _reference_frame, _abcorr, _observer),
-    do: :erlang.nif_error({:error, :not_loaded})
+  def spkezr(_target, _et, _reference_frame, _abcorr, _observer), do: :erlang.nif_error({:error, :not_loaded})
 
-  def spkez(_target, _et, _reference_frame, _abcorr, _observer),
-    do: :erlang.nif_error({:error, :not_loaded})
+  def spkez(_target, _et, _reference_frame, _abcorr, _observer), do: :erlang.nif_error({:error, :not_loaded})
 
-  def spkgeo(_target, _et, _reference_frame, _observer),
-    do: :erlang.nif_error({:error, :not_loaded})
+  def spkgeo(_target, _et, _reference_frame, _observer), do: :erlang.nif_error({:error, :not_loaded})
 
   def oscelt(_state, _et, _mu), do: :erlang.nif_error({:error, :not_loaded})
   def conics(_elements, _et), do: :erlang.nif_error({:error, :not_loaded})
@@ -86,11 +82,9 @@ defmodule Astro.NIF do
   def bodvcd(_code, _item), do: :erlang.nif_error({:error, :not_loaded})
   def bodvrd(_name, _item), do: :erlang.nif_error({:error, :not_loaded})
 
-  def pmsafe(_ra, _dec, _pmr, _pmd, _px, _rv, _epoch1, _epoch2),
-    do: :erlang.nif_error({:error, :not_loaded})
+  def pmsafe(_ra, _dec, _pmr, _pmd, _px, _rv, _epoch1, _epoch2), do: :erlang.nif_error({:error, :not_loaded})
 
-  def starpv(_ra, _dec, _pmr, _pmd, _px, _rv),
-    do: :erlang.nif_error({:error, :not_loaded})
+  def starpv(_ra, _dec, _pmr, _pmd, _px, _rv), do: :erlang.nif_error({:error, :not_loaded})
 
   def pvstar(_pv), do: :erlang.nif_error({:error, :not_loaded})
 end

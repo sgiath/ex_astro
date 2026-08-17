@@ -48,7 +48,8 @@ defmodule Astro.StarTest do
 
     assert length(result) == length(expected)
 
-    Enum.zip(result, expected)
+    result
+    |> Enum.zip(expected)
     |> Enum.each(fn {actual, {wanted, tolerance}} ->
       assert_in_delta actual, wanted, tolerance
     end)

@@ -36,8 +36,8 @@ defmodule Astro.Orbit do
   """
   @spec from_elements([float()]) :: t()
   def from_elements([rp, ecc, inc, lnode, argp, m0, t0, mu])
-      when is_float(rp) and is_float(ecc) and is_float(inc) and is_float(lnode) and
-             is_float(argp) and is_float(m0) and is_float(t0) and is_float(mu) do
+      when is_float(rp) and is_float(ecc) and is_float(inc) and is_float(lnode) and is_float(argp) and is_float(m0) and
+             is_float(t0) and is_float(mu) do
     %__MODULE__{
       rp: rp,
       ecc: ecc,
@@ -158,8 +158,7 @@ defmodule Astro.Orbit do
   Solve Kepler's equation for the eccentric anomaly of an elliptic orbit.
   """
   @spec eccentric_anomaly(float(), float()) :: float()
-  def eccentric_anomaly(mean_anomaly, ecc)
-      when is_float(mean_anomaly) and is_float(ecc) and ecc >= 0.0 and ecc < 1.0 do
+  def eccentric_anomaly(mean_anomaly, ecc) when is_float(mean_anomaly) and is_float(ecc) and ecc >= 0.0 and ecc < 1.0 do
     initial = mean_anomaly + ecc * :math.sin(mean_anomaly)
     kepler_iterate(mean_anomaly, ecc, initial, 60)
   end

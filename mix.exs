@@ -52,6 +52,7 @@ defmodule Astro.MixProject do
       # Development
       {:ex_check, "~> 0.16", only: [:dev], runtime: false},
       {:credo, "~> 1.7", only: [:dev], runtime: false},
+      {:styler, "~> 1.12", only: [:dev, :test], runtime: false},
       {:ex_doc, "~> 0.40", runtime: false},
       {:mix_test_watch, "~> 1.4", only: [:dev], runtime: false}
     ]
