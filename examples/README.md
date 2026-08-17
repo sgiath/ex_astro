@@ -15,7 +15,7 @@ from the repo root). Each notebook downloads its data on first run and writes
 the SVG snapshots next to itself.
 
 The NIF build needs a C toolchain, liberfa, and libgmp at link time. Inside
-this repo's flake: `nix develop`, then open the notebook.
+this repo's devenv: `devenv shell`, then open the notebook.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/sgiath/ex_astro/master/examples/inner-system.svg" width="49%" alt="Inner solar system with the main asteroid belt, true scale"/>

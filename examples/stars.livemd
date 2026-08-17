@@ -41,7 +41,7 @@ notebook verifies the catalog's SHA-256 digest and writes `nearby-stars.svg`
 next to itself.
 
 The NIF build needs a C toolchain and liberfa at link time — inside this
-repo's flake: `nix develop`, then open the notebook in Livebook.
+repo's devenv: `devenv shell`, then open the notebook in Livebook.
 
 ## Load the 10 parsec catalog
 
@@ -207,9 +207,9 @@ Epochs are two-part TDB Julian Dates `{jd1, jd2}` — the same form
 float on a number near $2.45 \times 10^6$. Both calls here pin `jd1` at
 J2000.0 ($2451545.0$) and put the offset in `jd2`:
 
-* source: $(t_{\mathrm{yr}} - 2000) \times 365.25$ days from the catalog
+- source: $(t_{\mathrm{yr}} - 2000) \times 365.25$ days from the catalog
   epoch
-* scene: `Astro.Time.to_et(epoch) / 86400` — ET seconds past J2000, as days
+- scene: `Astro.Time.to_et(epoch) / 86400` — ET seconds past J2000, as days
 
 The catalog's `pmRA` is already the _projected_ rate
 $\mu_{\alpha*} = \dot\alpha \cos\delta$, which is what you plot on the sky.
