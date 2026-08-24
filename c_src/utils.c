@@ -85,13 +85,6 @@ exa_load_string(ErlNifEnv *env, ERL_NIF_TERM arg, NativeStringKind kind, char **
   return true;
 }
 
-void
-exa_free_string(char *value)
-{
-  if (value != NULL)
-    free(value);
-}
-
 bool
 exa_load_list(ErlNifEnv *env, ERL_NIF_TERM arg, size_t length, double *result)
 {

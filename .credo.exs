@@ -5,21 +5,10 @@
       files: %{
         included: [
           "lib/",
-          "src/",
-          "test/",
-          "web/",
-          "apps/*/lib/",
-          "apps/*/src/",
-          "apps/*/test/",
-          "apps/*/web/"
+          "test/"
         ],
         excluded: [~r"/_build/", ~r"/deps/", ~r"/node_modules/"]
       },
-      plugins: [],
-      requires: [],
-      strict: false,
-      parse_timeout: 5000,
-      color: true,
       checks: %{
         enabled: [
           ## Consistency Checks

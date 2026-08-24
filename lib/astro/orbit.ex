@@ -72,9 +72,8 @@ defmodule Astro.Orbit do
   """
   @spec from_state([float()], float(), float()) :: {:ok, t()} | {:error, String.t()}
   def from_state(state, et, mu) do
-    case Ephemeris.oscelt(state, et, mu) do
-      {:ok, elements} -> {:ok, from_elements(elements)}
-      {:error, _reason} = error -> error
+    with {:ok, elements} <- Ephemeris.oscelt(state, et, mu) do
+      {:ok, from_elements(elements)}
     end
   end
 

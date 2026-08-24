@@ -42,12 +42,6 @@ spkobj_capacity_error(char *error)
 }
 
 static ERL_NIF_TERM
-spkobj_capacity_result(ErlNifEnv *env)
-{
-  return exa_error_result(env, "SPK object result exceeds supported capacity of 65536 IDs");
-}
-
-static ERL_NIF_TERM
 make_spice_int_list(ErlNifEnv *env, SpiceCell *cell, SpiceInt len)
 {
   ERL_NIF_TERM result = enif_make_list(env, 0);
@@ -55,19 +49,6 @@ make_spice_int_list(ErlNifEnv *env, SpiceCell *cell, SpiceInt len)
   for (SpiceInt i = len; i > 0; i--)
   {
     result = enif_make_list_cell(env, enif_make_int(env, SPICE_CELL_ELEM_I(cell, i - 1)), result);
-  }
-
-  return result;
-}
-
-static ERL_NIF_TERM
-make_spice_double_list(ErlNifEnv *env, SpiceDouble *values, SpiceInt len)
-{
-  ERL_NIF_TERM result = enif_make_list(env, 0);
-
-  for (SpiceInt i = len; i > 0; i--)
-  {
-    result = enif_make_list_cell(env, enif_make_double(env, values[i - 1]), result);
   }
 
   return result;
@@ -174,7 +155,7 @@ body_values(ErlNifEnv *env, SpiceInt code, SpiceChar *item)
     goto cleanup;
   }
 
-  result = exa_ok_result(env, make_spice_double_list(env, values, dim));
+  result = exa_ok_result(env, exa_make_list(env, values, dim));
 
 cleanup:
   free(values);
@@ -264,7 +245,7 @@ exa_nif_bodn2c(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
   result = exa_ok_result(env, enif_make_int(env, code));
 
 cleanup:
-  exa_free_string(name);
+  free(name);
 
   return result;
 }
@@ -317,7 +298,7 @@ exa_nif_spkobj(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
         continue;
       }
 
-      result = spkobj_capacity_error(error) ? spkobj_capacity_result(env) : exa_error_result(env, error);
+      result = spkobj_capacity_error(error) ? exa_error_result(env, "SPK object result exceeds supported capacity of 65536 IDs") : exa_error_result(env, error);
       goto cleanup;
     }
 
@@ -338,7 +319,7 @@ exa_nif_spkobj(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 
 cleanup:
   free(ids_storage);
-  exa_free_string(file);
+  free(file);
 
   return result;
 }
@@ -360,7 +341,7 @@ exa_nif_bodvcd(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
   result = body_values(env, code, item);
 
 cleanup:
-  exa_free_string(item);
+  free(item);
 
   return result;
 }
@@ -407,8 +388,8 @@ exa_nif_bodvrd(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
   result = body_values(env, code, item);
 
 cleanup:
-  exa_free_string(name);
-  exa_free_string(item);
+  free(name);
+  free(item);
 
   return result;
 }

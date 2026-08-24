@@ -59,7 +59,6 @@ typedef enum
 bool exa_cspice_lock(void);
 void exa_cspice_unlock(void);
 bool exa_load_string(ErlNifEnv *env, ERL_NIF_TERM arg, NativeStringKind kind, char **result);
-void exa_free_string(char *value);
 bool exa_load_list(ErlNifEnv *env, ERL_NIF_TERM arg, size_t length, double *result);
 ERL_NIF_TERM exa_make_list(ErlNifEnv *env, double *list, size_t length);
 bool exa_make_binary(ErlNifEnv *env, char *data, ERL_NIF_TERM *result);

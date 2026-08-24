@@ -19,7 +19,7 @@ free_kernel_paths(char **paths, SpiceInt count)
     return;
 
   for (i = 0; i < count; i++)
-    exa_free_string(paths[i]);
+    free(paths[i]);
 
   free(paths);
 }
@@ -210,7 +210,7 @@ cleanup:
   if (locked)
     exa_cspice_unlock();
   free_kernel_paths(snapshot, snapshot_count);
-  exa_free_string(path);
+  free(path);
   return result;
 }
 
@@ -246,7 +246,7 @@ exa_nif_kernel_unload(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
   result = enif_make_atom(env, "ok");
 
 cleanup:
-  exa_free_string(path);
+  free(path);
   return result;
 }
 

@@ -33,9 +33,9 @@ LDFLAGS += -Wl,-Bsymbolic
 LDFLAGS += $(SPICE_LIBS)
 
 # ERFA libraries
-LDFLAGS += -lerfa -lgmp
+LDFLAGS += -lerfa
 
-.PHONY: all check-platform clean distclean
+.PHONY: all check-platform clean
 all: check-platform $(TARGET)
 
 check-platform:
@@ -54,4 +54,3 @@ $(SRC_DIR)/%.o: $(SRC_DIR)/%.c $(SRC_DIR)/utils.h $(SRC_DIR)/nifs.h $(SPICE_HEAD
 clean:
 	@rm -f $(TARGET_DIR)/*.so $(SRC_DIR)/*.o
 
-distclean: clean

@@ -41,8 +41,6 @@ defmodule Astro.MixProject do
 
   defp deps do
     [
-      {:gnuplot, "~> 1.22"},
-
       # HTTP client to download kernels
       {:req, "~> 0.7"},
 

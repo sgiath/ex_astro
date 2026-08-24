@@ -58,14 +58,7 @@ defmodule Astro.KernelTest do
   end
 
   test "reloading a direct meta-kernel is idempotent" do
-    directory =
-      Path.join(System.tmp_dir!(), "ex_astro_kernel_#{System.unique_integer([:positive])}")
-
-    child = Path.join(directory, "runtime.tpc")
-    meta = Path.join(directory, "runtime.tm")
-    File.mkdir_p!(directory)
-    write_runtime_kernel(child)
-    write_meta_kernel(meta, child)
+    {directory, child, meta} = setup_meta_kernel()
 
     on_exit(fn ->
       write_runtime_kernel(child)
@@ -84,14 +77,7 @@ defmodule Astro.KernelTest do
   end
 
   test "a transitive child can also be furnished directly" do
-    directory =
-      Path.join(System.tmp_dir!(), "ex_astro_kernel_#{System.unique_integer([:positive])}")
-
-    child = Path.join(directory, "runtime.tpc")
-    meta = Path.join(directory, "runtime.tm")
-    File.mkdir_p!(directory)
-    write_runtime_kernel(child)
-    write_meta_kernel(meta, child)
+    {directory, child, meta} = setup_meta_kernel()
 
     on_exit(fn ->
       Astro.Kernel.unload(meta)
@@ -117,6 +103,18 @@ defmodule Astro.KernelTest do
 
   defp unload_repeatedly(path, count) do
     Enum.each(1..count, fn _ -> Astro.Kernel.unload(path) end)
+  end
+
+  defp setup_meta_kernel do
+    directory =
+      Path.join(System.tmp_dir!(), "ex_astro_kernel_#{System.unique_integer([:positive])}")
+
+    child = Path.join(directory, "runtime.tpc")
+    meta = Path.join(directory, "runtime.tm")
+    File.mkdir_p!(directory)
+    write_runtime_kernel(child)
+    write_meta_kernel(meta, child)
+    {directory, child, meta}
   end
 
   defp write_runtime_kernel(path) do

@@ -45,10 +45,10 @@ exa_nif_spkezr(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
   result = exa_ok_result2(env, exa_make_list(env, state, 6), enif_make_double(env, lt));
 
 cleanup:
-  exa_free_string(target);
-  exa_free_string(reference_frame);
-  exa_free_string(abcorr);
-  exa_free_string(observer);
+  free(target);
+  free(reference_frame);
+  free(abcorr);
+  free(observer);
 
   return result;
 }
@@ -98,8 +98,8 @@ exa_nif_spkez(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
   result = exa_ok_result2(env, exa_make_list(env, state, 6), enif_make_double(env, lt));
 
 cleanup:
-  exa_free_string(reference_frame);
-  exa_free_string(abcorr);
+  free(reference_frame);
+  free(abcorr);
 
   return result;
 }
@@ -148,7 +148,7 @@ exa_nif_spkgeo(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
   result = exa_ok_result2(env, exa_make_list(env, state, 6), enif_make_double(env, lt));
 
 cleanup:
-  exa_free_string(reference_frame);
+  free(reference_frame);
 
   return result;
 }

@@ -33,12 +33,6 @@ advance_calendar_day(int *iy, int *im, int *id)
   return erfa_status_ok(status);
 }
 
-static double
-topocentric_tdb_minus_tt(double jd1, double jd2, double ut, double elong, double u, double v)
-{
-  return eraDtdb(jd1, jd2, ut, elong, u, v);
-}
-
 ERL_NIF_TERM
 exa_nif_dtf2d(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
@@ -154,13 +148,13 @@ exa_nif_tt2tdb(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
       !enif_get_double(env, argv[5], &v))
     return enif_make_badarg(env);
 
-  dtr = topocentric_tdb_minus_tt(tt1, tt2, ut, elong, u, v);
+  dtr = eraDtdb(tt1, tt2, ut, elong, u, v);
 
   status = eraTttdb(tt1, tt2, dtr, &tdb1, &tdb2);
   if (!erfa_status_ok(status))
     return enif_make_badarg(env);
 
-  dtr = topocentric_tdb_minus_tt(tdb1, tdb2, ut, elong, u, v);
+  dtr = eraDtdb(tdb1, tdb2, ut, elong, u, v);
 
   status = eraTttdb(tt1, tt2, dtr, &tdb1, &tdb2);
   if (!erfa_status_ok(status))
@@ -198,13 +192,13 @@ exa_nif_tdb2tt(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
       !enif_get_double(env, argv[5], &v))
     return enif_make_badarg(env);
 
-  dtr = topocentric_tdb_minus_tt(tdb1, tdb2, ut, elong, u, v);
+  dtr = eraDtdb(tdb1, tdb2, ut, elong, u, v);
 
   status = eraTdbtt(tdb1, tdb2, dtr, &tt1, &tt2);
   if (!erfa_status_ok(status))
     return enif_make_badarg(env);
 
-  dtr = topocentric_tdb_minus_tt(tt1, tt2, ut, elong, u, v);
+  dtr = eraDtdb(tt1, tt2, ut, elong, u, v);
 
   status = eraTdbtt(tdb1, tdb2, dtr, &tt1, &tt2);
   if (!erfa_status_ok(status))
@@ -323,7 +317,7 @@ exa_nif_str2et(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
   result = enif_make_double(env, et);
 
 cleanup:
-  exa_free_string(timstr);
+  free(timstr);
 
   return result;
 }
@@ -363,7 +357,7 @@ exa_nif_utc2et(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
   result = enif_make_double(env, et);
 
 cleanup:
-  exa_free_string(utcstr);
+  free(utcstr);
 
   return result;
 }
@@ -404,8 +398,8 @@ exa_nif_unitim(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
   result = enif_make_double(env, converted_epoch);
 
 cleanup:
-  exa_free_string(insys);
-  exa_free_string(outsys);
+  free(insys);
+  free(outsys);
 
   return result;
 }

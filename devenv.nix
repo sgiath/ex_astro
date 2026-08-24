@@ -10,8 +10,6 @@ in
     git
     prettier
     liberfa
-    gmp
-    pkg-config
   ];
 
   languages = {
@@ -37,12 +35,7 @@ in
   };
 
   enterShell = ''
-    export LD_LIBRARY_PATH="${
-      pkgs.lib.makeLibraryPath [
-        pkgs.liberfa
-        pkgs.gmp
-      ]
-    }:$LD_LIBRARY_PATH"
+    export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath [ pkgs.liberfa ]}:$LD_LIBRARY_PATH"
   '';
 
   git-hooks.hooks = {
