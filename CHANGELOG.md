@@ -46,6 +46,11 @@
 - `mix astro.kernels` downloads `earth_latest_high_prec.bpc` again on every
   run; NAIF updates it about twice a week, and the task used to keep the
   first copy forever
+- `mix astro.kernels` checks that every downloaded and existing file starts
+  with the SPICE ID word of its kernel type (`DAF/SPK`, `KPL/FK`, ...). A
+  download that is not a kernel, such as an HTML error page served with HTTP
+  200, fails the task and is not kept; an existing file that is not a kernel
+  is reported and downloaded again
 - `mix astro.kernels` prints a `config/runtime.exs` snippet that resolves
   kernels with `Application.app_dir/2` instead of working-directory-relative
   paths, so configured kernels also load from releases

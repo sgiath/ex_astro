@@ -123,6 +123,21 @@ defmodule Mix.Tasks.Astro.Kernels do
   # so every run downloads them again. A failed refresh keeps the old file.
   @refreshed ["/pck/earth_latest_high_prec.bpc"]
 
+  # Every SPICE kernel starts with an ID word naming its architecture and
+  # type. Checking it keeps an error page served with HTTP 200, or one saved
+  # by an older version of this task, from being used as a kernel.
+  @id_words %{
+    ".bsp" => "DAF/SPK ",
+    ".bpc" => "DAF/PCK ",
+    ".tls" => "KPL/LSK",
+    ".tpc" => "KPL/PCK",
+    ".tf" => "KPL/FK"
+  }
+
+  for path <- @kernels, not Map.has_key?(@id_words, Path.extname(path)) do
+    raise "no SPICE ID word known for #{path}; add its extension to @id_words"
+  end
+
   @impl Mix.Task
   def run(_args) do
     start_req!()
@@ -167,7 +182,14 @@ defmodule Mix.Tasks.Astro.Kernels do
         download(@base_url <> path, destination)
 
       File.exists?(destination) ->
-        IO.puts("File #{path} exists. Skipping")
+        case check_id_word(destination, destination) do
+          :ok ->
+            IO.puts("File #{path} exists. Skipping")
+
+          failure ->
+            Mix.shell().error("File #{path} is unusable (#{failure_reason(failure)}); downloading it again")
+            download(@base_url <> path, destination)
+        end
 
       true ->
         IO.puts("Downloading #{path} ...")
@@ -176,15 +198,17 @@ defmodule Mix.Tasks.Astro.Kernels do
   end
 
   # Stream into a file next to the destination and rename only after a
-  # complete HTTP 200 response, so a failed or interrupted download never
-  # leaves a file that a later run would skip as already present. Streaming
-  # keeps gigabyte-sized kernels such as jup365.bsp out of memory.
+  # complete HTTP 200 response whose content starts with the kernel's ID word,
+  # so a failed, interrupted or bogus download never leaves a file that a
+  # later run would skip as already present. Streaming keeps gigabyte-sized
+  # kernels such as jup365.bsp out of memory.
   defp download(url, destination) do
     partial = destination <> ".part"
 
     result =
       with :ok <- File.mkdir_p(Path.dirname(destination)),
-           {:ok, %{status: 200}} <- stream_to_file(url, partial) do
+           {:ok, %{status: 200}} <- stream_to_file(url, partial),
+           :ok <- check_id_word(partial, destination) do
         File.rename(partial, destination)
       end
 
@@ -205,8 +229,31 @@ defmodule Mix.Tasks.Astro.Kernels do
     error in File.Error -> {:error, error}
   end
 
+  # `kernel` names the kernel `file` should hold; a `.part` file has no type.
+  defp check_id_word(file, kernel) do
+    expected = Map.fetch!(@id_words, Path.extname(kernel))
+
+    case File.open(file, [:read, :binary], &IO.binread(&1, byte_size(expected))) do
+      {:ok, ^expected} ->
+        :ok
+
+      {:ok, data} when is_binary(data) ->
+        {:error, "not a SPICE kernel: starts with #{inspect(data)}, expected #{inspect(expected)}"}
+
+      {:ok, :eof} ->
+        {:error, "not a SPICE kernel: empty file"}
+
+      {:ok, {:error, reason}} ->
+        {:error, reason}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
   defp failure_reason({:ok, %{status: status}}), do: "HTTP #{status}"
   defp failure_reason({:error, exception}) when is_exception(exception), do: Exception.message(exception)
+  defp failure_reason({:error, message}) when is_binary(message), do: message
   defp failure_reason({:error, posix}), do: List.to_string(:file.format_error(posix))
 
   defp start_req! do
