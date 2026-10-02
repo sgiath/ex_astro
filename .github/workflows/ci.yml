@@ -96,9 +96,15 @@ jobs:
         if: matrix.full
         run: mix check
 
+      - name: mix compile
+        if: ${{ !matrix.full }}
+        run: mix compile --warnings-as-errors
+        env:
+          MIX_ENV: test
+
       - name: mix test
         if: ${{ !matrix.full }}
-        run: mix test
+        run: mix test --warnings-as-errors
         env:
           MIX_ENV: test
 
