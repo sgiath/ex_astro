@@ -4,6 +4,8 @@
 
 - decode UTC Julian Dates on leap-second days with their real day length;
   `jd2dt/1` returns second `60` and `to_datetime/1` raises for it
+- replace the unguarded Kepler Newton iteration with a bisection-safeguarded
+  solver; near-parabolic orbits no longer return divergent eccentric anomalies
 
 ## v0.3.0 (2026-08-15)
 

@@ -33,6 +33,23 @@ defmodule Astro.OrbitTest do
     assert_raise ArgumentError, fn -> Astro.Orbit.eccentric_anomaly(2.5, 1.0) end
   end
 
+  test "eccentric anomaly converges for near-parabolic and multi-revolution inputs" do
+    for {mean_anomaly, ecc} <- [
+          {0.067, 0.999},
+          {0.001, 0.999999},
+          {-0.001, 0.999999},
+          {3.14159, 0.9999},
+          {1.0e-12, 0.99},
+          {25.0, 0.95}
+        ] do
+      eccentric_anomaly = Astro.Orbit.eccentric_anomaly(mean_anomaly, ecc)
+      residual = eccentric_anomaly - ecc * :math.sin(eccentric_anomaly) - mean_anomaly
+
+      assert abs(residual) < 1.0e-12, "M=#{mean_anomaly} e=#{ecc}: residual #{residual}"
+      assert abs(eccentric_anomaly - mean_anomaly) <= ecc
+    end
+  end
+
   test "derived values describe elliptic orbits" do
     orbit = Astro.Orbit.from_elements(@elements)
     semi_major_axis = Astro.Orbit.semi_major_axis(orbit)

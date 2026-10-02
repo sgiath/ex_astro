@@ -17,6 +17,12 @@ defmodule Astro.Orbit do
   alias Astro.Ephemeris
   alias Astro.Support
 
+  # Bisection halves the bracket on every rejected Newton step, so 100
+  # iterations covers far more than the 2^-52 relative spacing of a double.
+  @kepler_max_iterations 100
+  # Step size below which the estimate is accurate to double precision.
+  @kepler_tolerance 1.0e-15
+
   @type vec3 :: {float(), float(), float()}
   @type t :: %__MODULE__{
           rp: float(),
@@ -155,11 +161,18 @@ defmodule Astro.Orbit do
 
   @doc """
   Solve Kepler's equation for the eccentric anomaly of an elliptic orbit.
+
+  Uses Newton's method safeguarded by bisection on the bracket
+  `[M - e, M + e]`, so it converges for every eccentricity in `[0, 1)`,
+  including near-parabolic orbits. The result is not normalized and stays
+  within `e` of the mean anomaly.
   """
   @spec eccentric_anomaly(float(), float()) :: float()
   def eccentric_anomaly(mean_anomaly, ecc) when is_float(mean_anomaly) and is_float(ecc) and ecc >= 0.0 and ecc < 1.0 do
+    # E - M = e sin(E) lies in [-e, e], and E - e sin(E) - M increases
+    # monotonically, so this interval always contains exactly one root.
     initial = mean_anomaly + ecc * :math.sin(mean_anomaly)
-    kepler_iterate(mean_anomaly, ecc, initial, 60)
+    solve_kepler(mean_anomaly, ecc, initial, mean_anomaly - ecc, mean_anomaly + ecc, @kepler_max_iterations)
   end
 
   def eccentric_anomaly(_mean_anomaly, _ecc) do
@@ -241,17 +254,27 @@ defmodule Astro.Orbit do
     end
   end
 
-  defp kepler_iterate(mean_anomaly, ecc, estimate, iterations_left) do
-    delta =
-      (mean_anomaly - (estimate - ecc * :math.sin(estimate))) /
-        (1.0 - ecc * :math.cos(estimate))
+  defp solve_kepler(mean_anomaly, ecc, estimate, low, high, iterations_left) do
+    residual = estimate - ecc * :math.sin(estimate) - mean_anomaly
 
-    next = estimate + delta
-
-    if abs(delta) < 1.0e-13 or iterations_left == 1 do
-      next
+    if residual == 0.0 do
+      estimate
     else
-      kepler_iterate(mean_anomaly, ecc, next, iterations_left - 1)
+      {low, high} = if residual < 0.0, do: {estimate, high}, else: {low, estimate}
+      newton = estimate - residual / (1.0 - ecc * :math.cos(estimate))
+      next = if newton > low and newton < high, do: newton, else: (low + high) / 2.0
+
+      cond do
+        abs(next - estimate) <= @kepler_tolerance * max(1.0, abs(estimate)) ->
+          next
+
+        iterations_left == 1 ->
+          raise ArithmeticError,
+                "Kepler solver did not converge for mean anomaly #{mean_anomaly}, eccentricity #{ecc}"
+
+        true ->
+          solve_kepler(mean_anomaly, ecc, next, low, high, iterations_left - 1)
+      end
     end
   end
 
