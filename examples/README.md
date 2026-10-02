@@ -4,7 +4,7 @@ Interactive Livebook tutorials that build the figures above the fold of the
 [project README](../README.md) in stages — face-on, tilted, then animated - while explaining the
 library calls and the math behind them.
 
-- [Drawing the Solar System](orbits.livemd) — osculating orbits from JPL DE440: every `Astro.Orbit`
+- [Drawing the Solar System](orbits.livemd) — osculating orbits from JPL DE442: every `Astro.Orbit`
   function, Kepler's equation, and the ellipse-as-unit-circle SVG technique, rendered as two
   diagrams
 - [Mapping Nearby Stars](stars.livemd) — the 100 nearest stellar systems, propagated through

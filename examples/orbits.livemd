@@ -23,7 +23,7 @@ library call; the rest is plain Elixir and a bit of SVG.
 </p>
 
 These are not artist's impressions: every ellipse is the real osculating orbit
-of the body at the epoch, computed from the same DE440 ephemeris data that JPL
+of the body at the epoch, computed from the same DE442 ephemeris data that JPL
 uses. Eccentricities, inclinations, and node/periapsis orientations are true;
 the dots sit at the true positions and revolve with true period ratios.
 
@@ -46,7 +46,7 @@ start Livebook from that shell.
 SPICE reads everything - positions, masses, reference frames - from kernel
 files. This notebook needs four:
 
-- `de440s.bsp` - an _SPK_ (ephemeris) kernel: Chebyshev polynomials for the
+- `de442s.bsp` - an _SPK_ (ephemeris) kernel: Chebyshev polynomials for the
   positions of the Sun, the planetary barycenters, and the Moon, 1849–2150
 - `gm_de440.tpc` - a text _PCK_ (constants) kernel: the gravitational
   parameter $GM$ of each of those bodies
@@ -70,9 +70,9 @@ defmodule Orbits.Kernels do
   @naif "https://naif.jpl.nasa.gov/pub/naif/generic_kernels"
   @kernels [
     %{
-      file: "de440s.bsp",
-      url: "#{@naif}/spk/planets/de440s.bsp",
-      sha256: "c1c7feeab882263fc493a9d5a5b2ddd71b54826cdf65d8d17a76126b260a49f2"
+      file: "de442s.bsp",
+      url: "#{@naif}/spk/planets/de442s.bsp",
+      sha256: "54d97562a5b094d298b1b8eafa5a2e17e3e010ce85e1a366d07f003ad159323c"
     },
     %{
       file: "gm_de440.tpc",
@@ -588,7 +588,7 @@ defmodule Orbits.Render do
         <text x="28" y="36" fill="#9d9da6" font-size="12">EX_ASTRO</text>
         <text x="772" y="36" text-anchor="end">#{Calendar.strftime(epoch, "%Y-%m-%d")} UTC</text>
         <text x="28" y="774">#{title}</text>
-        <text x="772" y="774" text-anchor="end">DE440 \u00b7 SPICE SPKEZR/OSCELT</text>
+        <text x="772" y="774" text-anchor="end">DE442 \u00b7 SPICE SPKEZR/OSCELT</text>
       </g>
     </svg>
     """
@@ -870,7 +870,7 @@ defmodule Orbits.Scenes do
   defp desc(%{title: title, compress: k}, epoch) do
     """
     #{title} at #{epoch} - real osculating orbits from JPL ephemerides
-    (DE440s planets, gm_de440 GM constants, CODES codes_300ast asteroids;
+    (DE442s planets, gm_de440 GM constants, CODES codes_300ast asteroids;
     https://naif.jpl.nasa.gov/pub/naif/generic_kernels/) through the
     ex_astro library (SPICE spkezr + oscelt, sun-centered, ECLIPJ2000
     frame). Each orbit is the osculating conic at the epoch,
