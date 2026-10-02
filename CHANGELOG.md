@@ -35,6 +35,10 @@
 
 ## v0.3.0 (2026-08-15)
 
+- **breaking:** Julian Dates in `Astro.Time` are two-part `{jd1, jd2}` tuples
+  instead of single floats (`to_datetime/1`, `jd2dt/1`, `dtf2d/6`, and every
+  time-scale conversion). Wrap existing floats with `Astro.Time.jd_from_float/1`
+  and collapse results with `Astro.Time.jd_to_float/1`
 - add high-level orbit, ephemeris-time, and gravitational-parameter helpers
 - add `Astro.Star` catalog propagation and BCRS state-vector conversions with auditable ERFA warnings
 - serialize CSPICE-backed NIF access to prevent concurrent kernel/error-state races
