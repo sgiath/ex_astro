@@ -35,6 +35,8 @@
 - **breaking:** `:req` is an optional dependency; add `{:req, "~> 0.7"}` to
   run `mix astro.kernels`. The task no longer starts `:ex_astro` (and loads
   every configured kernel) before downloading. `:ex_doc` is dev-only
+- **breaking:** require Elixir 1.16 or newer; 1.15 no longer receives
+  security patches
 
 ## v0.3.0 (2026-08-15)
 
