@@ -85,24 +85,25 @@ exa_load_string(ErlNifEnv *env, ERL_NIF_TERM arg, NativeStringKind kind, char **
   return true;
 }
 
+/*
+ * Decode exactly `length` doubles and require the list to end there. This
+ * never walks past `length` cells, so an oversized caller-supplied list cannot
+ * keep a normal scheduler busy the way enif_get_list_length would.
+ */
 bool
 exa_load_list(ErlNifEnv *env, ERL_NIF_TERM arg, size_t length, double *result)
 {
-  unsigned int len;
   ERL_NIF_TERM head;
   ERL_NIF_TERM tail = arg;
 
-  if (!enif_get_list_length(env, arg, &len) || len != length)
-    return false;
-
-  for (unsigned int i = 0; i < len; i++)
+  for (size_t i = 0; i < length; i++)
   {
     if (!enif_get_list_cell(env, tail, &head, &tail) ||
         !enif_get_double(env, head, &result[i]))
       return false;
   }
 
-  return true;
+  return enif_is_empty_list(env, tail);
 }
 
 ERL_NIF_TERM

@@ -103,4 +103,15 @@ defmodule Astro.StarTest do
     assert Astro.Star.pvstar([1.0, 0.0, 0.0, 200.0, 0.0, 0.0]) ==
              {:error, :superluminal_speed}
   end
+
+  test "pvstar rejects state vectors that are not proper six-element float lists" do
+    for pv <- [
+          [1.0, 0.0, 0.0, 0.0, 0.0],
+          [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+          [1.0, 0.0, 0.0, 0.0, 0.0, 0.0 | 0.0],
+          [1.0, 0.0, 0.0, 0.0, 0.0, 0]
+        ] do
+      assert_raise ArgumentError, fn -> Astro.Star.pvstar(pv) end
+    end
+  end
 end

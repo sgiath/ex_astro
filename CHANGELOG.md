@@ -19,6 +19,9 @@
   `{:error, message}` like the other kernel operations instead of raising
 - resolve the body name and read its values under one CSPICE lock in
   `Astro.Support.bodvrd/2`, so concurrent kernel changes cannot mix pool states
+- decode fixed-length vector arguments cell by cell instead of measuring the
+  whole list first, so oversized lists passed to normal-scheduler NIFs such as
+  `Astro.Star.pvstar/1` are rejected without scanning them
 
 ## v0.3.0 (2026-08-15)
 
