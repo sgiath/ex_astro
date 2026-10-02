@@ -38,7 +38,7 @@ It is a bit more complicated then normal lib so pay attention:
 - instal ERFA library
   - <https://github.com/liberfa/erfa?tab=readme-ov-file#building-and-installing-erfa>
 - use `x86_64-linux`; CSPICE N0067 is bundled, so compilation does not download the toolkit. The
-  included devenv setup supplies the C toolchain and ERFA on NixOS.
+  included Nix flake dev shell supplies the C toolchain and ERFA on NixOS.
 - add `ex_astro` to `mix.exs`
 
 ```elixir

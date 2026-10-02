@@ -38,13 +38,8 @@ ex_astro-*.tar
 
 .backlog/
 
-# Devenv
-.devenv*
-devenv.local.nix
-devenv.local.yaml
-
-# direnv
-.direnv
-
-# pre-commit
-.pre-commit-config.yaml
+# Editor, language-server and direnv caches.
+/.direnv/
+/.elixir_ls/
+/.elixir-tools/
+/.expert/
