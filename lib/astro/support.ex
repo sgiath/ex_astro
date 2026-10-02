@@ -52,8 +52,8 @@ defmodule Astro.Support do
   ## Output
 
     - `{:ok, name}` - canonical SPICE body name associated with the code.
-    - `{:error, reason}` - returned when the code has no known body-name
-      mapping.
+    - `{:error, "body not found: <code>"}` - returned when the code has no
+      known body-name mapping.
 
   ## Particulars
 
@@ -82,7 +82,8 @@ defmodule Astro.Support do
   ## Output
 
     - `{:ok, code}` - NAIF integer ID code for the body.
-    - `{:error, reason}` - returned when the name is not known to SPICE.
+    - `{:error, "body not found: <name>"}` - returned when the name is not
+      known to SPICE; `<name>` is the name as given.
 
   ## Particulars
 
@@ -179,8 +180,9 @@ defmodule Astro.Support do
 
     - `{:ok, values}` - list of floating-point values associated with the body
       and item.
-    - `{:error, reason}` - returned when the kernel variable cannot be found or
-      cannot be read.
+    - `{:error, reason}` - returned when the body is unknown
+      (`"body not found: <name>"`, with the name as given) or the kernel
+      variable cannot be found or cannot be read.
 
   ## Particulars
 
@@ -206,29 +208,23 @@ defmodule Astro.Support do
 
   Accepts a NAIF integer ID, an integer-string ID such as `"10"`, or a body
   name such as `"SUN"`. A PCK containing GM values, such as `gm_de440.tpc`,
-  must be loaded.
+  must be loaded. A name is resolved and its GM read in one native call, so a
+  concurrent kernel load cannot pair the code from one kernel-pool state with
+  the value from another.
+
+  Returns `{:error, reason}` when the body is unknown, its GM is missing, or
+  the kernel pool holds more than one GM value for it.
   """
   @spec gm(naif_id() | String.t()) :: {:ok, float()} | {:error, String.t()}
-  def gm(code) when is_integer(code) do
-    case bodvcd(code, "GM") do
-      {:ok, [mu]} ->
-        {:ok, mu}
-
-      {:ok, values} ->
-        {:error, "GM for body #{code} has #{length(values)} values, expected 1"}
-
-      {:error, _reason} = error ->
-        error
-    end
-  end
+  def gm(code) when is_integer(code), do: single_gm(bodvcd(code, "GM"), code)
 
   def gm(name) when is_binary(name) do
     name = String.trim(name)
 
-    if Regex.match?(~r/\A-?\d+\z/, name) do
-      gm(String.to_integer(name))
-    else
-      with {:ok, code} <- bodn2c(name), do: gm(code)
-    end
+    single_gm(bodvrd(name, "GM"), name)
   end
+
+  defp single_gm({:ok, [mu]}, _body), do: {:ok, mu}
+  defp single_gm({:ok, values}, body), do: {:error, "GM for body #{body} has #{length(values)} values, expected 1"}
+  defp single_gm({:error, _reason} = error, _body), do: error
 end

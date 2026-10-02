@@ -6,10 +6,15 @@ SPICE_INCLUDE_DIR := $(SPICE_DIR)/include
 SPICE_LIB_DIR := $(SPICE_DIR)/lib
 
 # compilation
+# Make's built-in CC default is `cc`, so `?=` would never pick gcc; honor an
+# externally supplied CC (environment or command line) instead.
+ifeq ($(origin CC),default)
 CC = gcc
+endif
 TARGET := $(TARGET_DIR)/ex_astro_nif.so
-SOURCES := nif.c utils.c kernel.c time.c ephemeris.c support.c star.c
+SOURCES := nif.c utils.c kernel.c kernel_pool.c time.c time_spice.c ephemeris.c support.c star.c
 OBJECTS := $(SOURCES:%.c=$(SRC_DIR)/%.o)
+HEADERS := $(wildcard $(SRC_DIR)/*.h)
 SPICE_HEADERS := $(wildcard $(SPICE_INCLUDE_DIR)/*.h)
 SPICE_LIBS := $(SPICE_LIB_DIR)/cspice.a $(SPICE_LIB_DIR)/csupport.a
 
@@ -42,11 +47,12 @@ check-platform:
 	@if [ "$$(uname -s)-$$(uname -m)" != "Linux-x86_64" ]; then \
 	  echo "ex_astro: vendored CSPICE supports only Linux x86_64" >&2; exit 1; fi
 
-$(TARGET): $(OBJECTS) $(SPICE_LIBS) | check-platform
+# Makefile is a prerequisite so flag changes rebuild objects and the library.
+$(TARGET): $(OBJECTS) $(SPICE_LIBS) Makefile | check-platform
 	@mkdir -p $(@D)
 	$(CC) $(OBJECTS) -shared -o $@ $(LDFLAGS)
 
-$(SRC_DIR)/%.o: $(SRC_DIR)/%.c $(SRC_DIR)/utils.h $(SRC_DIR)/nifs.h $(SPICE_HEADERS) | check-platform
+$(SRC_DIR)/%.o: $(SRC_DIR)/%.c $(HEADERS) $(SPICE_HEADERS) Makefile | check-platform
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 # cleaning

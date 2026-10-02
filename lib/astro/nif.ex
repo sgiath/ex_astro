@@ -93,6 +93,9 @@ defmodule Astro.NIF do
   @spec conics([float()], float()) :: result([float()])
   def conics(_elements, _et), do: :erlang.nif_error({:error, :not_loaded})
 
+  @spec sxform(String.t(), String.t(), float()) :: result([float()])
+  def sxform(_from, _to, _et), do: :erlang.nif_error({:error, :not_loaded})
+
   @spec bodc2n(integer()) :: result(String.t())
   def bodc2n(_code), do: :erlang.nif_error({:error, :not_loaded})
 

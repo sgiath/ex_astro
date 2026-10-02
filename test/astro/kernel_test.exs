@@ -3,6 +3,12 @@ defmodule Astro.KernelTest do
 
   @runtime_kernel "test/fixtures/kernels/ex_astro_test_runtime.tpc"
   @partial_kernel "test/fixtures/kernels/ex_astro_test_partial.tm"
+  @override_assignments """
+  BODY100004_ROLLBACK = ( 46.0 )
+  BODY100004_EXTRA = ( 1.0 )
+  NAIF_BODY_NAME += ( 'EXA_OVERRIDE_BODY' )
+  NAIF_BODY_CODE += ( 100005 )
+  """
 
   test "loads and unloads a kernel" do
     path = Path.expand(@runtime_kernel)
@@ -57,6 +63,41 @@ defmodule Astro.KernelTest do
     assert {:error, _reason} = Astro.Support.bodvcd(100_002, "RUNTIME")
   end
 
+  test "a failed load restores pool values from memory, not from an edited loaded kernel" do
+    %{loaded: loaded, failing_meta: failing_meta} = setup_rollback_kernels()
+    assert :ok = Astro.Kernel.load(loaded)
+    kernels = loaded_kernels()
+
+    File.write!(loaded, text_kernel("BODY100004_ROLLBACK = ( 45.0 )"))
+
+    assert {:error, "SPICE(NOSUCHFILE) -- " <> message} = Astro.Kernel.load(failing_meta)
+    refute message =~ "incomplete"
+    assert_rolled_back(kernels)
+  end
+
+  test "a failed load restores pool values after a loaded kernel was deleted" do
+    %{loaded: loaded, failing_meta: failing_meta} = setup_rollback_kernels()
+    assert :ok = Astro.Kernel.load(loaded)
+    kernels = loaded_kernels()
+
+    File.rm!(loaded)
+
+    assert {:error, "SPICE(NOSUCHFILE) -- " <> message} = Astro.Kernel.load(failing_meta)
+    refute message =~ "incomplete"
+    assert_rolled_back(kernels)
+  end
+
+  test "a malformed text kernel leaves none of its assignments in the pool" do
+    %{loaded: loaded, malformed: malformed} = setup_rollback_kernels()
+    assert :ok = Astro.Kernel.load(loaded)
+    kernels = loaded_kernels()
+
+    assert {:error, "SPICE(NUMBEREXPECTED) -- " <> message} = Astro.Kernel.load(malformed)
+    refute message =~ "incomplete"
+    assert_rolled_back(kernels)
+  end
+
+  @tag :kernels
   test "kernel mutations are atomic for concurrent readers" do
     runtime = Path.expand(@runtime_kernel)
     partial = Path.expand(@partial_kernel)
@@ -196,5 +237,58 @@ defmodule Astro.KernelTest do
       path,
       "KPL/MK\n\n\\begindata\n\nKERNELS_TO_LOAD = ( '#{child}' )\n\n\\begintext\n"
     )
+  end
+
+  defp setup_rollback_kernels do
+    directory =
+      Path.join(System.tmp_dir!(), "ex_astro_rollback_#{System.unique_integer([:positive])}")
+
+    paths = %{
+      loaded: Path.join(directory, "loaded.tpc"),
+      failing_meta: Path.join(directory, "failing.tm"),
+      malformed: Path.join(directory, "malformed.tpc")
+    }
+
+    override = Path.join(directory, "override.tpc")
+    missing = Path.join(directory, "missing.tpc")
+
+    on_exit(fn ->
+      Enum.each(Map.values(paths), &Astro.Kernel.unload/1)
+      File.rm_rf!(directory)
+    end)
+
+    File.mkdir_p!(directory)
+
+    File.write!(
+      paths.loaded,
+      text_kernel("""
+      BODY100004_ROLLBACK = ( 44.0 )
+      NAIF_BODY_NAME += ( 'EXA_ROLLBACK_BODY' )
+      NAIF_BODY_CODE += ( 100004 )
+      """)
+    )
+
+    File.write!(override, text_kernel(@override_assignments))
+
+    File.write!(
+      paths.failing_meta,
+      "KPL/MK\n\n\\begindata\n\nKERNELS_TO_LOAD = ( '#{override}', '#{missing}' )\n\n\\begintext\n"
+    )
+
+    malformed = @override_assignments <> "BODY100004_BROKEN = ( 1.0 abc )\n"
+    File.write!(paths.malformed, text_kernel(malformed))
+    paths
+  end
+
+  defp text_kernel(assignments), do: "KPL/PCK\n\n\\begindata\n\n#{assignments}\n\\begintext\n"
+
+  # Values a failed attempt assigned must be gone, the original values must
+  # come back, and the body-name cache must see the restored name mappings.
+  defp assert_rolled_back(kernels) do
+    assert loaded_kernels() == kernels
+    assert {:ok, [44.0]} = Astro.Support.bodvcd(100_004, "ROLLBACK")
+    assert {:error, _reason} = Astro.Support.bodvcd(100_004, "EXTRA")
+    assert {:ok, 100_004} = Astro.Support.bodn2c("EXA_ROLLBACK_BODY")
+    assert {:error, _reason} = Astro.Support.bodn2c("EXA_OVERRIDE_BODY")
   end
 end

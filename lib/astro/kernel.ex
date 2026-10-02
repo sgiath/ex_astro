@@ -9,7 +9,7 @@ defmodule Astro.Kernel do
 
   The native library owns one process-wide CSPICE kernel pool. Kernel mutations
   and all other CSPICE calls are serialized by the native mutex. A failed
-  `load/1` restores the prior pool before returning an error.
+  `load/1` rolls back its partial load before returning an error; see `load/1`.
 
   `loaded/0` returns directly loaded paths as absolute paths. Paths pulled in by
   meta-kernels are returned exactly as CSPICE stored them and may be relative.
@@ -25,7 +25,13 @@ defmodule Astro.Kernel do
 
   Loading the same directly furnished path again is idempotent. A path loaded
   only as a meta-kernel child is still furnished directly by this function.
-  A failed load restores the pool to its prior state before returning.
+
+  A failed load unloads every kernel the attempt added and, for text kernels
+  and meta-kernels, restores the kernel pool variables from an in-memory
+  snapshot taken before the attempt. Previously loaded files are not re-read
+  for the restore, so edits to them or their deletion since they were loaded
+  do not leak into the restored pool. If the rollback cannot complete, the
+  error message contains the load error and says the restore was incomplete.
   """
   @spec load(Path.t()) :: :ok | {:error, String.t()}
   def load(path) do

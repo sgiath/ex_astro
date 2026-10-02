@@ -2,9 +2,32 @@
 
 ## Unreleased
 
+- **breaking:** `%Astro.Orbit{}` requires its eight numeric fields
+  (`rp`, `ecc`, `inc`, `lnode`, `argp`, `m0`, `t0`, `mu`); `frame` stays
+  optional
+- `Astro.Orbit.osculating/4` returns `{:error, "frame ... is not inertial"}`
+  for rotating frames such as `"IAU_EARTH"`; it previously derived invalid
+  elements from their rotating-frame velocity
+- a failed `Astro.Kernel.load/1` unloads what the attempt added and restores
+  kernel pool variables from an in-memory snapshot instead of clearing the pool
+  and reloading every kernel from disk; edited or deleted kernels no longer
+  change or empty the pool after an unrelated failed load
+- initialize ERFA's leap-second table when the NIF loads; concurrent first
+  UTC conversions raced on ERFA's lazy initialization and could crash the VM
+- `Astro.Support.gm/1` resolves a body name and reads its GM in one native
+  call, so a concurrent kernel load cannot mix two pool states
+- "body not found" errors name the requested body or code, e.g.
+  `"body not found: NOPE"`
+- `Astro.Support.bodc2n/1` returns 36-character body names intact; the last
+  character was truncated
+- native allocation failures raise `:ex_astro_alloc_failed` everywhere;
+  string arguments are decoded into stack buffers and no longer fail as
+  `ArgumentError` on allocation failure
 - `mix astro.kernels` verifies a pinned SHA-256 for every catalog kernel NAIF
   does not replace in place; `earth_latest_high_prec.bpc` and
   `latest_leapseconds.tls` keep the ID-word check only
+- the native build honors an externally supplied `CC` and rebuilds when the
+  `Makefile` changes
 - add `Astro.Kernel.Catalog`, the default NAIF generic kernel set in SPICE load
   order with each kernel's download URL and SPICE ID word check.
   `mix astro.kernels` downloads and validates exactly this set; the catalog

@@ -1,6 +1,8 @@
 defmodule Astro.EphemerisTest do
   use ExUnit.Case, async: true
 
+  @moduletag :kernels
+
   doctest Astro.Ephemeris
 
   # Reference values from JPL Horizons (DE441) for 2025-Nov-21 00:00:00 TDB
@@ -59,6 +61,21 @@ defmodule Astro.EphemerisTest do
   test "spkezr reports unknown bodies" do
     assert {:error, message} = Astro.Ephemeris.spkezr("NOT_A_BODY", 0.0, "J2000", "NONE", "SSB")
     assert message =~ "NOT_A_BODY"
+  end
+
+  test "spkezr reports unknown frames and aberration corrections" do
+    assert {:error, "SPICE(UNKNOWNFRAME) -- " <> message} =
+             Astro.Ephemeris.spkezr("EARTH", @et, "NOT_A_FRAME", "NONE", "SUN")
+
+    assert message =~ "NOT_A_FRAME"
+
+    assert {:error, "SPICE(INVALIDOPTION) -- " <> message} = Astro.Ephemeris.spkezr("EARTH", @et, "J2000", "XYZ", "SUN")
+    assert message =~ "XYZ"
+  end
+
+  test "spkezr reports an epoch outside the loaded SPK coverage" do
+    assert {:error, "SPICE(SPKINSUFFDATA) -- " <> _message} =
+             Astro.Ephemeris.spkezr("EARTH", 1.0e12, "J2000", "NONE", "SUN")
   end
 
   defp assert_state(%Astro.State{} = actual, %Astro.State{} = expected, position_tolerance, velocity_tolerance) do

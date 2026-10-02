@@ -30,9 +30,15 @@ defmodule Astro.Orbit do
     - `mu` - gravitational parameter (GM) of the primary body, km^3/s^2
 
   The same elements describe all three types of conic orbit: elliptic,
-  parabolic, and hyperbolic. `frame` names the SPICE reference frame the
-  angular elements are measured in; it is `nil` when the orbit was built
-  directly or from a state, whose frame the caller tracks.
+  parabolic, and hyperbolic. The eight numeric fields are required when
+  building the struct. `frame` names the SPICE reference frame the angular
+  elements are measured in; it is `nil` when the orbit was built directly or
+  from a state, whose frame the caller tracks.
+
+  Functions that depend on a closed orbit - `apoapsis/1`, `mean_motion/1`,
+  `period/1`, `mean_anomaly_at/2`, `eccentric_anomaly_at/2`, and
+  `true_anomaly_at/2` - accept only elliptic orbits (`ecc < 1`) and raise
+  `ArgumentError` for parabolic and hyperbolic ones.
   """
 
   alias Astro.Ephemeris
@@ -58,7 +64,8 @@ defmodule Astro.Orbit do
           frame: String.t() | nil
         }
 
-  defstruct [:rp, :ecc, :inc, :lnode, :argp, :m0, :t0, :mu, :frame]
+  @enforce_keys [:rp, :ecc, :inc, :lnode, :argp, :m0, :t0, :mu]
+  defstruct @enforce_keys ++ [:frame]
 
   @doc """
   Derive osculating elements from a Cartesian state.
@@ -90,7 +97,13 @@ defmodule Astro.Orbit do
   otherwise it is read from the loaded kernels with `Astro.Support.gm/1`.
   The returned orbit records the frame in its `frame` field.
 
-  Raises `ArgumentError` for options other than `:frame`, `:abcorr`, and `:mu`.
+  The frame must be inertial at `et`, because osculating elements are only
+  defined for a state in an inertial frame. A rotating frame such as
+  `"IAU_EARTH"` returns `{:error, "frame IAU_EARTH is not inertial"}`; SPICE
+  errors for an unknown frame are returned as `{:error, message}`.
+
+  Raises `ArgumentError` for options other than `:frame`, `:abcorr`, and `:mu`,
+  and for a `:mu` that is not a float.
   """
   @spec osculating(String.t(), String.t(), float(), keyword()) ::
           {:ok, t()} | {:error, String.t()}
@@ -98,7 +111,8 @@ defmodule Astro.Orbit do
     opts = Keyword.validate!(opts, [:mu, frame: "J2000", abcorr: "NONE"])
     frame = Keyword.fetch!(opts, :frame)
 
-    with {:ok, mu} <- resolve_mu(opts, observer),
+    with :ok <- check_inertial(frame, et),
+         {:ok, mu} <- resolve_mu(opts, observer),
          {:ok, state, _light_time} <- Ephemeris.spkezr(target, et, frame, opts[:abcorr], observer),
          {:ok, orbit} <- from_state(state, et, mu) do
       {:ok, %{orbit | frame: frame}}
@@ -148,6 +162,9 @@ defmodule Astro.Orbit do
 
   @doc """
   Return the apoapsis radius in kilometers.
+
+  Raises `ArgumentError` for a parabolic or hyperbolic orbit (`ecc >= 1`),
+  which has no apoapsis.
   """
   @spec apoapsis(t()) :: float()
   def apoapsis(%__MODULE__{ecc: ecc}) when ecc >= 1.0 do
@@ -158,6 +175,9 @@ defmodule Astro.Orbit do
 
   @doc """
   Return the mean motion in radians per second.
+
+  Only elliptic orbits have a mean motion here; raises `ArgumentError` for a
+  parabolic or hyperbolic orbit (`ecc >= 1`).
   """
   @spec mean_motion(t()) :: float()
   def mean_motion(%__MODULE__{ecc: ecc}) when ecc >= 1.0 do
@@ -171,6 +191,9 @@ defmodule Astro.Orbit do
 
   @doc """
   Return the orbital period in seconds.
+
+  Raises `ArgumentError` for a parabolic or hyperbolic orbit (`ecc >= 1`),
+  which does not repeat.
   """
   @spec period(t()) :: float()
   def period(%__MODULE__{ecc: ecc}) when ecc >= 1.0 do
@@ -220,6 +243,9 @@ defmodule Astro.Orbit do
 
   @doc """
   Return the normalized mean anomaly at an epoch.
+
+  Uses `mean_motion/1`, so it raises `ArgumentError` for a parabolic or
+  hyperbolic orbit (`ecc >= 1`).
   """
   @spec mean_anomaly_at(t(), float()) :: float()
   def mean_anomaly_at(%__MODULE__{m0: m0, t0: t0} = orbit, et) do
@@ -228,6 +254,9 @@ defmodule Astro.Orbit do
 
   @doc """
   Return the eccentric anomaly at an epoch.
+
+  Uses `mean_anomaly_at/2`, so it raises `ArgumentError` for a parabolic or
+  hyperbolic orbit (`ecc >= 1`).
   """
   @spec eccentric_anomaly_at(t(), float()) :: float()
   def eccentric_anomaly_at(%__MODULE__{ecc: ecc} = orbit, et) do
@@ -237,6 +266,9 @@ defmodule Astro.Orbit do
 
   @doc """
   Return the true anomaly at an epoch.
+
+  Uses `mean_anomaly_at/2`, so it raises `ArgumentError` for a parabolic or
+  hyperbolic orbit (`ecc >= 1`).
   """
   @spec true_anomaly_at(t(), float()) :: float()
   def true_anomaly_at(%__MODULE__{ecc: ecc} = orbit, et) do
@@ -264,6 +296,21 @@ defmodule Astro.Orbit do
     w = {so * si, -co * si, ci}
 
     {u, v, w}
+  end
+
+  # A frame is inertial when its rotation to J2000 does not change with time:
+  # the derivative block of the 6x6 state transformation (rows 3..5, columns
+  # 0..2) is exactly zero.
+  defp check_inertial(frame, et) do
+    with {:ok, xform} <- NIF.sxform(frame, "J2000", et) do
+      derivative = for row <- 3..5, column <- 0..2, do: Enum.at(xform, row * 6 + column)
+
+      if Enum.all?(derivative, &(&1 == 0.0)) do
+        :ok
+      else
+        {:error, "frame #{frame} is not inertial"}
+      end
+    end
   end
 
   defp resolve_mu(opts, observer) do

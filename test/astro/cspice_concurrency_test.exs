@@ -1,6 +1,9 @@
 defmodule Astro.CSPICEConcurrencyTest do
   use ExUnit.Case, async: true
 
+  # utc2et needs a leap-second kernel.
+  @moduletag :kernels
+
   @iterations 80
 
   test "concurrent SPICE-backed calls keep successful results and errors isolated" do

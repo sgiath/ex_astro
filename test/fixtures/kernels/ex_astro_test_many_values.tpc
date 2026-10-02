@@ -5,6 +5,9 @@ KPL/PCK
 NAIF_BODY_NAME += ( 'EX_ASTRO_TEST_BODY' )
 NAIF_BODY_CODE += ( 100001 )
 
+NAIF_BODY_NAME += ( 'EX_ASTRO_TEST_BODY_WITH_36_CHAR_NAME' )
+NAIF_BODY_CODE += ( 100010 )
+
 BODY100001_MANY = (
   1.0, 2.0, 3.0, 4.0, 5.0,
   6.0, 7.0, 8.0, 9.0, 10.0,
@@ -12,6 +15,12 @@ BODY100001_MANY = (
   16.0, 17.0, 18.0, 19.0, 20.0
 )
 
+BODY100001_GM = ( 1.0, 2.0 )
+
+BODY100001_LABEL = ( 'NOT A NUMBER' )
+
 \begintext
 
-Test-only body constant fixture for ex_astro support capacity coverage.
+Test-only body definitions and constants loaded at startup by
+config/runtime.exs: a constant with more than 16 values, a GM with two values,
+a character-valued constant, and a body name of exactly 36 characters.

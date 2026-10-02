@@ -83,6 +83,19 @@ defmodule Astro.Time do
            second :: integer(), microsecond :: integer()}
   @type uniform_time_system :: String.t()
 
+  @doc """
+  Guard that matches a split Julian Date: a two-element tuple of floats.
+
+  It checks the shape only, not that the parts form a valid date.
+
+  ## Example
+
+      iex> require Astro.Time
+      iex> Astro.Time.is_jd({2451545.0, 0.0})
+      true
+      iex> Astro.Time.is_jd(2451545.0)
+      false
+  """
   defguard is_jd(jd)
            when is_tuple(jd) and tuple_size(jd) == 2 and
                   is_float(elem(jd, 0)) and is_float(elem(jd, 1))

@@ -34,6 +34,7 @@ static ErlNifFunc nif_funcs[] = {
     {"spkgeo", 4, exa_nif_spkgeo, ERL_NIF_DIRTY_JOB_CPU_BOUND},
     {"oscelt", 3, exa_nif_oscelt, ERL_NIF_DIRTY_JOB_CPU_BOUND},
     {"conics", 2, exa_nif_conics, ERL_NIF_DIRTY_JOB_CPU_BOUND},
+    {"sxform", 3, exa_nif_sxform, ERL_NIF_DIRTY_JOB_CPU_BOUND},
     {"bodc2n", 1, exa_nif_bodc2n, ERL_NIF_DIRTY_JOB_CPU_BOUND},
     {"bodn2c", 1, exa_nif_bodn2c, ERL_NIF_DIRTY_JOB_CPU_BOUND},
     {"spkobj", 1, exa_nif_spkobj, ERL_NIF_DIRTY_JOB_IO_BOUND},
@@ -44,12 +45,29 @@ static ErlNifFunc nif_funcs[] = {
     {"pvstar", 1, exa_nif_pvstar, 0},
 };
 
+/*
+ * ERFA 2.0.1's eraDat lazily initializes its leap-second table statics on the
+ * first call without locking (https://github.com/liberfa/erfa/issues/103),
+ * and the UTC NIFs call it from concurrent normal schedulers. Initialize it
+ * here, before any NIF can run. ex_astro never calls eraSetLeapSeconds, so
+ * every later access is read-only.
+ */
+static void
+init_erfa_leap_seconds(void)
+{
+  double delta_at;
+
+  (void)eraDat(2000, 1, 1, 0.0, &delta_at);
+}
+
 static int
 load(ErlNifEnv *env, void **priv, ERL_NIF_TERM load_info)
 {
   (void)env;
   (void)priv;
   (void)load_info;
+
+  init_erfa_leap_seconds();
 
   return exa_cspice_init();
 }

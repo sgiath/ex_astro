@@ -25,10 +25,16 @@ Use this file to understand the local workflow and style.
 ### Tests
 
 - All tests: `mix test`
-- Single test file: `mix test test/astro_test.exs`
-- Single test by line: `mix test test/astro_test.exs:4`
+- Single test file: `mix test test/astro/orbit_test.exs`
+- Single test by line: `mix test test/astro/orbit_test.exs:41`
 - Tagged tests: `mix test --only <tag>`
 - Trace output: `mix test --trace`
+- Without downloaded kernels: `mix test --exclude kernels`
+
+Tests tagged `:kernels` read catalog kernels from `priv/kernels/` (download them
+with `mix astro.kernels`); untagged tests use only `test/fixtures/`. Tag every
+new test that needs a catalog kernel. `test/test_helper.exs` stops the run with
+the list of missing kernels unless `:kernels` is excluded.
 
 ### Docs & Utilities
 

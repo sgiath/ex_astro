@@ -6,19 +6,17 @@
 #define BODY_VALUE_NAME_LENGTH 64
 #define BODY_VALUE_ERROR_LENGTH 160
 
-static bool
-init_spice_int_cell(SpiceCell *cell, SpiceInt capacity, SpiceInt **storage)
+/*
+ * Allocate an integer cell of `capacity` (bounded by SPKOBJ_MAX_CAPACITY).
+ * Returns the storage the caller must free, or NULL when allocation fails.
+ */
+static SpiceInt *
+init_spice_int_cell(SpiceCell *cell, SpiceInt capacity)
 {
-  size_t count;
-  SpiceInt *data;
+  SpiceInt *data = malloc((SPICE_CELL_CTRLSZ + (size_t)capacity) * sizeof(SpiceInt));
 
-  if (capacity <= 0 || (size_t)capacity > (SIZE_MAX / sizeof(SpiceInt)) - SPICE_CELL_CTRLSZ)
-    return false;
-
-  count = SPICE_CELL_CTRLSZ + (size_t)capacity;
-  data = malloc(count * sizeof(SpiceInt));
   if (data == NULL)
-    return false;
+    return NULL;
 
   *cell = (SpiceCell){
       SPICE_INT,
@@ -30,9 +28,8 @@ init_spice_int_cell(SpiceCell *cell, SpiceInt capacity, SpiceInt **storage)
       SPICEFALSE,
       (void *)data,
       (void *)(data + SPICE_CELL_CTRLSZ)};
-  *storage = data;
 
-  return true;
+  return data;
 }
 
 static bool
@@ -63,7 +60,7 @@ body_value_name(SpiceInt code, SpiceChar *item, SpiceChar *name, size_t name_siz
 }
 
 static ERL_NIF_TERM
-body_value_error(ErlNifEnv *env, char *prefix, SpiceChar *name)
+prefixed_error(ErlNifEnv *env, char *prefix, SpiceChar *name)
 {
   SpiceChar message[BODY_VALUE_ERROR_LENGTH];
 
@@ -94,29 +91,29 @@ read_body_values(ErlNifEnv *env, SpiceInt code, SpiceChar *item)
     return exa_error_result(env, error);
 
   if (!found)
-    return body_value_error(env, "kernel variable not found", name);
+    return prefixed_error(env, "kernel variable not found", name);
 
   if (type[0] != 'N')
-    return body_value_error(env, "kernel variable is not numeric", name);
+    return prefixed_error(env, "kernel variable is not numeric", name);
 
   if (dim < 0 || (size_t)dim > SIZE_MAX / sizeof(SpiceDouble))
-    return body_value_error(env, "kernel variable value count exceeds supported allocation size", name);
+    return prefixed_error(env, "kernel variable value count exceeds supported allocation size", name);
 
   if (dim == 0)
     return exa_ok_result(env, enif_make_list(env, 0));
 
   values = malloc((size_t)dim * sizeof(SpiceDouble));
   if (values == NULL)
-    return body_value_error(env, "failed to allocate kernel variable values", name);
+    return exa_raise_alloc_failed(env);
 
   gdpool_c(name, 0, dim, &count, values, &found);
 
   if (exa_cspice_failed(error))
     result = exa_error_result(env, error);
   else if (!found)
-    result = body_value_error(env, "kernel variable not found", name);
+    result = prefixed_error(env, "kernel variable not found", name);
   else if (count != dim)
-    result = body_value_error(env, "kernel variable value count changed while reading", name);
+    result = prefixed_error(env, "kernel variable value count changed while reading", name);
   else
     result = exa_ok_result(env, exa_make_list(env, values, dim));
 
@@ -130,18 +127,18 @@ exa_nif_bodc2n(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
   SpiceInt code;
   SpiceChar error[CSPICE_ERROR_LENGTH];
+  /* bodc2n_c's length includes the terminator, so a 36-character name needs 37. */
+  SpiceChar name[NATIVE_STRING_BODY_MAX + 1];
+  SpiceBoolean found;
   ERL_NIF_TERM name_term;
 
   if (!enif_get_int(env, argv[0], &code))
     return enif_make_badarg(env);
 
-  SpiceChar name[36];
-  SpiceBoolean found;
-
   if (!exa_cspice_lock())
     return exa_cspice_sync_error(env);
 
-  bodc2n_c(code, 36, name, &found);
+  bodc2n_c(code, sizeof(name), name, &found);
 
   // check for any errors
   if (exa_cspice_failed(error))
@@ -154,7 +151,10 @@ exa_nif_bodc2n(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 
   // return error if body was not found
   if (!found)
-    return exa_error_result(env, "body not found");
+  {
+    snprintf(error, sizeof(error), "body not found: %d", (int)code);
+    return exa_error_result(env, error);
+  }
 
   if (!exa_make_binary(env, name, &name_term))
     return name_term;
@@ -165,24 +165,16 @@ exa_nif_bodc2n(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 ERL_NIF_TERM
 exa_nif_bodn2c(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
-  SpiceChar *name = NULL;
-  ERL_NIF_TERM result;
-
-  if (!exa_load_string(env, argv[0], NATIVE_STRING_BODY, &name))
-  {
-    result = enif_make_badarg(env);
-    goto cleanup;
-  }
-
+  SpiceChar name[NATIVE_STRING_BODY_MAX + 1];
   SpiceInt code;
   SpiceBoolean found;
   SpiceChar error[CSPICE_ERROR_LENGTH];
 
+  if (!exa_load_string(env, argv[0], NATIVE_STRING_BODY, name, sizeof(name)))
+    return enif_make_badarg(env);
+
   if (!exa_cspice_lock())
-  {
-    result = exa_cspice_sync_error(env);
-    goto cleanup;
-  }
+    return exa_cspice_sync_error(env);
 
   bodn2c_c(name, &code, &found);
 
@@ -190,57 +182,42 @@ exa_nif_bodn2c(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
   if (exa_cspice_failed(error))
   {
     exa_cspice_unlock();
-    result = exa_error_result(env, error);
-    goto cleanup;
+    return exa_error_result(env, error);
   }
 
   exa_cspice_unlock();
 
   // return error if body was not found
   if (!found)
-  {
-    result = exa_error_result(env, "body not found");
-    goto cleanup;
-  }
+    return prefixed_error(env, "body not found", name);
 
-  // return OK tuple
-  result = exa_ok_result(env, enif_make_int(env, code));
-
-cleanup:
-  free(name);
-
-  return result;
+  return exa_ok_result(env, enif_make_int(env, code));
 }
 
 ERL_NIF_TERM
 exa_nif_spkobj(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
-  SpiceChar *file = NULL;
+  SpiceChar file[NATIVE_STRING_KERNEL_PATH_MAX + 1];
   SpiceCell ids;
-  SpiceInt *ids_storage = NULL;
+  SpiceInt *ids_storage;
   SpiceInt capacity = SPKOBJ_INITIAL_CAPACITY;
   ERL_NIF_TERM result;
   SpiceInt length;
   SpiceChar error[CSPICE_ERROR_LENGTH];
 
-  if (!exa_load_string(env, argv[0], NATIVE_STRING_KERNEL_PATH, &file))
-  {
-    result = enif_make_badarg(env);
-    goto cleanup;
-  }
+  if (!exa_load_string(env, argv[0], NATIVE_STRING_KERNEL_PATH, file, sizeof(file)))
+    return enif_make_badarg(env);
 
   while (true)
   {
-    if (!init_spice_int_cell(&ids, capacity, &ids_storage))
-    {
-      result = exa_error_result(env, "failed to allocate SPK object result buffer");
-      goto cleanup;
-    }
+    ids_storage = init_spice_int_cell(&ids, capacity);
+    if (ids_storage == NULL)
+      return exa_raise_alloc_failed(env);
 
     if (!exa_cspice_lock())
     {
-      result = exa_cspice_sync_error(env);
-      goto cleanup;
+      free(ids_storage);
+      return exa_cspice_sync_error(env);
     }
 
     spkobj_c(file, &ids);
@@ -249,7 +226,6 @@ exa_nif_spkobj(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
     {
       exa_cspice_unlock();
       free(ids_storage);
-      ids_storage = NULL;
 
       if (spkobj_capacity_error(error) && capacity < SPKOBJ_MAX_CAPACITY)
       {
@@ -260,8 +236,7 @@ exa_nif_spkobj(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
         continue;
       }
 
-      result = spkobj_capacity_error(error) ? exa_error_result(env, "SPK object result exceeds supported capacity of 65536 IDs") : exa_error_result(env, error);
-      goto cleanup;
+      return spkobj_capacity_error(error) ? exa_error_result(env, "SPK object result exceeds supported capacity of 65536 IDs") : exa_error_result(env, error);
     }
 
     length = card_c(&ids);
@@ -269,48 +244,35 @@ exa_nif_spkobj(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
     if (exa_cspice_failed(error))
     {
       exa_cspice_unlock();
-      result = exa_error_result(env, error);
-      goto cleanup;
+      free(ids_storage);
+      return exa_error_result(env, error);
     }
 
     exa_cspice_unlock();
 
     result = exa_ok_result(env, make_spice_int_list(env, &ids, length));
-    goto cleanup;
+    free(ids_storage);
+
+    return result;
   }
-
-cleanup:
-  free(ids_storage);
-  free(file);
-
-  return result;
 }
 
 ERL_NIF_TERM
 exa_nif_bodvcd(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
   SpiceInt code;
-  SpiceChar *item = NULL;
+  SpiceChar item[NATIVE_STRING_KERNEL_ITEM_MAX + 1];
   ERL_NIF_TERM result;
 
   if (!enif_get_int(env, argv[0], &code) ||
-      !exa_load_string(env, argv[1], NATIVE_STRING_KERNEL_ITEM, &item))
-  {
-    result = enif_make_badarg(env);
-    goto cleanup;
-  }
+      !exa_load_string(env, argv[1], NATIVE_STRING_KERNEL_ITEM, item, sizeof(item)))
+    return enif_make_badarg(env);
 
   if (!exa_cspice_lock())
-  {
-    result = exa_cspice_sync_error(env);
-    goto cleanup;
-  }
+    return exa_cspice_sync_error(env);
 
   result = read_body_values(env, code, item);
   exa_cspice_unlock();
-
-cleanup:
-  free(item);
 
   return result;
 }
@@ -318,24 +280,19 @@ cleanup:
 ERL_NIF_TERM
 exa_nif_bodvrd(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
-  SpiceChar *name = NULL, *item = NULL;
+  SpiceChar name[NATIVE_STRING_BODY_MAX + 1];
+  SpiceChar item[NATIVE_STRING_KERNEL_ITEM_MAX + 1];
   ERL_NIF_TERM result;
   SpiceChar error[CSPICE_ERROR_LENGTH];
   SpiceInt code;
   SpiceBoolean found;
 
-  if (!exa_load_string(env, argv[0], NATIVE_STRING_BODY, &name) ||
-      !exa_load_string(env, argv[1], NATIVE_STRING_KERNEL_ITEM, &item))
-  {
-    result = enif_make_badarg(env);
-    goto cleanup;
-  }
+  if (!exa_load_string(env, argv[0], NATIVE_STRING_BODY, name, sizeof(name)) ||
+      !exa_load_string(env, argv[1], NATIVE_STRING_KERNEL_ITEM, item, sizeof(item)))
+    return enif_make_badarg(env);
 
   if (!exa_cspice_lock())
-  {
-    result = exa_cspice_sync_error(env);
-    goto cleanup;
-  }
+    return exa_cspice_sync_error(env);
 
   /* Resolve the name and read its values under one lock so a concurrent
    * kernel mutation cannot pair a code with values from another pool state. */
@@ -344,15 +301,11 @@ exa_nif_bodvrd(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
   if (exa_cspice_failed(error))
     result = exa_error_result(env, error);
   else if (!found)
-    result = exa_error_result(env, "body not found");
+    result = prefixed_error(env, "body not found", name);
   else
     result = read_body_values(env, code, item);
 
   exa_cspice_unlock();
-
-cleanup:
-  free(name);
-  free(item);
 
   return result;
 }

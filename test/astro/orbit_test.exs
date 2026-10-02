@@ -21,6 +21,7 @@ defmodule Astro.OrbitTest do
     m0_deg: 3.185855008712534e2
   }
 
+  @tag :kernels
   test "from_state matches Horizons osculating elements" do
     {:ok, state, _light_time} = Astro.Ephemeris.spkezr("EARTH", @horizons_et, "J2000", "NONE", "SUN")
 
@@ -63,6 +64,57 @@ defmodule Astro.OrbitTest do
 
     assert {:ok, state} = Astro.Orbit.state_at(%{circular | ecc: ecc, t0: 100.0}, 100.0)
     assert_state(state, {r, 0.0, 0.0}, {0.0, periapsis_speed, 0.0})
+  end
+
+  test "state_at propagates a parabola away from periapsis" do
+    # Barker's equation: tan(nu/2) + tan(nu/2)^3 / 3 = sqrt(mu / (2 q^3)) * t,
+    # so tan(nu/2) = 1 (nu = 90 degrees) is reached at t = 4/3 sqrt(2 q^3 / mu),
+    # where r = 2q and both velocity components are sqrt(mu / (2q)).
+    q = 7_000.0
+    dt = 4.0 / 3.0 * :math.sqrt(2.0 * q ** 3 / @mu)
+    speed = :math.sqrt(@mu / (2.0 * q))
+    parabola = %Astro.Orbit{rp: q, ecc: 1.0, inc: 0.0, lnode: 0.0, argp: 0.0, m0: 0.0, t0: 100.0, mu: @mu}
+
+    assert {:ok, state} = Astro.Orbit.state_at(parabola, 100.0 + dt)
+    assert_state(state, {0.0, 2.0 * q, 0.0}, {-speed, speed, 0.0})
+  end
+
+  test "state_at propagates a hyperbola away from periapsis" do
+    # Hyperbolic Kepler equation M = e sinh(H) - H with mean motion
+    # n = sqrt(mu / |a|^3), and perifocal position
+    # (|a| (e - cosh H), |a| sqrt(e^2 - 1) sinh H).
+    q = 7_000.0
+    ecc = 1.5
+    a = q / (ecc - 1.0)
+    h = 1.0
+    n = :math.sqrt(@mu / a ** 3)
+    dt = (ecc * :math.sinh(h) - h) / n
+    h_rate = n / (ecc * :math.cosh(h) - 1.0)
+    b = a * :math.sqrt(ecc ** 2 - 1.0)
+    hyperbola = %Astro.Orbit{rp: q, ecc: ecc, inc: 0.0, lnode: 0.0, argp: 0.0, m0: 0.0, t0: 100.0, mu: @mu}
+
+    assert {:ok, state} = Astro.Orbit.state_at(hyperbola, 100.0 + dt)
+
+    assert_state(
+      state,
+      {a * (ecc - :math.cosh(h)), b * :math.sinh(h), 0.0},
+      {-a * :math.sinh(h) * h_rate, b * :math.cosh(h) * h_rate, 0.0}
+    )
+  end
+
+  test "state_at reports invalid elements" do
+    assert {:error, "SPICE(BADPERIAPSEVALUE) -- " <> _message} = Astro.Orbit.state_at(%{@orbit | rp: -7_000.0}, 0.0)
+    assert {:error, "SPICE(BADECCENTRICITY) -- " <> _message} = Astro.Orbit.state_at(%{@orbit | ecc: -0.1}, 0.0)
+  end
+
+  test "from_state reports a non-positive mu and a zero position" do
+    state = %Astro.State{position: {7_000.0, 0.0, 0.0}, velocity: {0.0, 7.5, 0.0}}
+
+    assert {:error, "SPICE(NONPOSITIVEMASS) -- " <> _message} = Astro.Orbit.from_state(state, 0.0, 0.0)
+    assert {:error, "SPICE(NONPOSITIVEMASS) -- " <> _message} = Astro.Orbit.from_state(state, 0.0, -1.0)
+
+    assert {:error, "SPICE(DEGENERATECASE) -- " <> _message} =
+             Astro.Orbit.from_state(%{state | position: {0.0, 0.0, 0.0}}, 0.0, @mu)
   end
 
   test "from_state recovers the elements state_at propagated" do
@@ -125,6 +177,10 @@ defmodule Astro.OrbitTest do
     assert_raise ArgumentError, fn -> Astro.Orbit.apoapsis(orbit) end
     assert_raise ArgumentError, fn -> Astro.Orbit.mean_motion(orbit) end
     assert_raise ArgumentError, fn -> Astro.Orbit.period(orbit) end
+    assert_raise ArgumentError, fn -> Astro.Orbit.mean_anomaly_at(orbit, 0.0) end
+    assert_raise ArgumentError, fn -> Astro.Orbit.eccentric_anomaly_at(orbit, 0.0) end
+    assert_raise ArgumentError, fn -> Astro.Orbit.true_anomaly_at(orbit, 0.0) end
+    assert_raise ArgumentError, fn -> Astro.Orbit.period(%{orbit | ecc: 1.0}) end
   end
 
   test "apoapsis and semi-major axis follow conic geometry" do
@@ -152,8 +208,12 @@ defmodule Astro.OrbitTest do
       {u, v, _w} = Astro.Orbit.perifocal_basis(orbit)
       expected_true_anomaly = :math.atan2(dot(position, v), dot(position, u))
 
-      eccentric_anomaly = Astro.Orbit.eccentric_anomaly_at(orbit, et)
-      assert eccentric_anomaly == Astro.Orbit.eccentric_anomaly(Astro.Orbit.mean_anomaly_at(orbit, et), 0.3)
+      # Perifocal position is (a (cos E - e), b sin E) with b = a sqrt(1 - e^2).
+      a = Astro.Orbit.semi_major_axis(orbit)
+      b = a * :math.sqrt(1.0 - 0.3 ** 2)
+      expected_eccentric_anomaly = :math.atan2(dot(position, v) / b, dot(position, u) / a + 0.3)
+
+      assert_in_delta wrap(Astro.Orbit.eccentric_anomaly_at(orbit, et) - expected_eccentric_anomaly), 0.0, 1.0e-9
       assert_in_delta Astro.Orbit.true_anomaly_at(orbit, et), expected_true_anomaly, 1.0e-9
     end
   end
@@ -178,6 +238,7 @@ defmodule Astro.OrbitTest do
     assert_vector(w, {0.0, 0.0, 1.0})
   end
 
+  @tag :kernels
   test "osculating derives Earth's heliocentric orbit" do
     assert {:ok, orbit} =
              Astro.Orbit.osculating("3", "10", 0.0, frame: "ECLIPJ2000")
@@ -195,6 +256,7 @@ defmodule Astro.OrbitTest do
     assert orbit.frame == "ECLIPJ2000"
   end
 
+  @tag :kernels
   test "osculating records the default frame" do
     assert {:ok, orbit} = Astro.Orbit.osculating("3", "10", 0.0)
     assert orbit.frame == "J2000"
@@ -206,12 +268,33 @@ defmodule Astro.OrbitTest do
     end
   end
 
+  @tag :kernels
+  test "osculating accepts inertial frames and rejects rotating ones" do
+    assert {:ok, %Astro.Orbit{frame: "ECLIPJ2000"}} = Astro.Orbit.osculating("3", "10", 0.0, frame: "ECLIPJ2000")
+    assert {:error, "frame IAU_EARTH is not inertial"} = Astro.Orbit.osculating("3", "10", 0.0, frame: "IAU_EARTH")
+  end
+
+  test "osculating reports unknown frames" do
+    assert {:error, "SPICE(UNKNOWNFRAME) -- " <> message} =
+             Astro.Orbit.osculating("3", "10", 0.0, frame: "NOT_A_FRAME", mu: @mu)
+
+    assert message =~ "NOT_A_FRAME"
+  end
+
+  test "osculating rejects a :mu that is not a float" do
+    assert_raise ArgumentError, ~r/:mu must be a float/, fn ->
+      Astro.Orbit.osculating("3", "10", 0.0, mu: 398_600)
+    end
+  end
+
   defp assert_state(%Astro.State{position: position, velocity: velocity}, expected_position, expected_velocity) do
     for index <- 0..2 do
       assert_in_delta elem(position, index), elem(expected_position, index), 1.0e-6
       assert_in_delta elem(velocity, index), elem(expected_velocity, index), 1.0e-9
     end
   end
+
+  defp wrap(angle), do: angle - 2.0 * :math.pi() * round(angle / (2.0 * :math.pi()))
 
   defp degrees(radians), do: radians * 180.0 / :math.pi()
 

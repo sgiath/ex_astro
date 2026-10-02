@@ -1,7 +1,12 @@
 defmodule Astro.TimeTest do
   use ExUnit.Case, async: true
 
-  doctest Astro.Time
+  # The moduledoc example calls str2et/1, which needs a leap-second kernel.
+  doctest Astro.Time, except: [:moduledoc]
+  doctest Astro.Time, only: [:moduledoc], tags: [kernels: true]
+
+  # 2017-01-01 00:00:00 UTC, the instant after the 2016-12-31 leap second.
+  @jd_2017 2_457_754.5
 
   test "dtf2d and jd2dt convert the J2000 epoch" do
     jd = Astro.Time.dtf2d(2000, 1, 1, 12, 0, 0.0)
@@ -68,6 +73,38 @@ defmodule Astro.TimeTest do
     assert_in_delta roundtrip_tai, Astro.Time.jd_to_float(tai), 1.0e-12
   end
 
+  test "utc2tai adds TAI - UTC to the second part of the split date" do
+    # TAI - UTC was 36 s from 2015-07-01 and is 37 s from 2017-01-01.
+    assert {2_457_540.5, tai2} = Astro.Time.utc2tai({2_457_540.5, 0.25})
+    assert_in_delta tai2, 0.25 + 36.0 / 86_400.0, 1.0e-14
+
+    assert {2_457_785.5, tai2} = Astro.Time.utc2tai({2_457_785.5, 0.25})
+    assert_in_delta tai2, 0.25 + 37.0 / 86_400.0, 1.0e-14
+  end
+
+  test "tai2tt adds the fixed 32.184 s to the second part of the split date" do
+    assert {2_457_785.5, tt2} = Astro.Time.tai2tt({2_457_785.5, 0.25})
+    assert_in_delta tt2, 0.25 + 32.184 / 86_400.0, 1.0e-14
+  end
+
+  test "UTC across the 2016-12-31 leap second advances TAI by one SI second per second" do
+    tai_seconds =
+      for {year, month, day, hour, minute, second} <- [
+            {2016, 12, 31, 23, 59, 59.0},
+            {2016, 12, 31, 23, 59, 60.0},
+            {2017, 1, 1, 0, 0, 0.0}
+          ] do
+        {tai1, tai2} = year |> Astro.Time.dtf2d(month, day, hour, minute, second) |> Astro.Time.utc2tai()
+        (tai1 - @jd_2017 + tai2) * 86_400.0
+      end
+
+    # TAI seconds past 2017-01-01 00:00:00 TAI: 23:59:59 UTC is 00:00:35 TAI,
+    # the leap second 00:00:36, and midnight UTC 00:00:37.
+    for {actual, expected} <- Enum.zip(tai_seconds, [35.0, 36.0, 37.0]) do
+      assert_in_delta actual, expected, 1.0e-9
+    end
+  end
+
   test "TCG and TCB conversions match the ERFA reference values" do
     # ERFA t_erfa_c.c: t_tttcg, t_tcgtt, t_tdbtcb, t_tcbtdb
     assert {2_453_750.5, tcg2} = Astro.Time.tt2tcg({2_453_750.5, 0.892482639})
@@ -83,6 +120,7 @@ defmodule Astro.TimeTest do
     assert_in_delta tdb2, 0.8928551362746343397, 1.0e-12
   end
 
+  @tag :kernels
   test "et and day second helpers are consistent" do
     assert Astro.Time.str2et("2000 JAN 01 12:00:00 TDB") == {:ok, 0.0}
     assert {:ok, et} = Astro.Time.utc2et("2000-01-01T12:00:00")
@@ -104,6 +142,7 @@ defmodule Astro.TimeTest do
     assert message =~ ~r/^SPICE\(\w+\) -- \S/
   end
 
+  @tag :kernels
   test "datetime and ephemeris time helpers agree with SPICE and round trip" do
     {:ok, utc_et} = Astro.Time.utc2et("2000-01-01T12:00:00")
 
@@ -194,6 +233,7 @@ defmodule Astro.TimeTest do
            )
   end
 
+  @tag :kernels
   test "tt2tdb and tdb2tt closely track SPICE uniform-scale conversions" do
     for tt <- [
           {2_451_544.5, 0.0},

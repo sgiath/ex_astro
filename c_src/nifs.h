@@ -31,6 +31,7 @@ ERL_NIF_TERM exa_nif_spkez(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]);
 ERL_NIF_TERM exa_nif_spkgeo(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]);
 ERL_NIF_TERM exa_nif_oscelt(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]);
 ERL_NIF_TERM exa_nif_conics(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]);
+ERL_NIF_TERM exa_nif_sxform(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]);
 
 ERL_NIF_TERM exa_nif_bodc2n(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]);
 ERL_NIF_TERM exa_nif_bodn2c(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]);

@@ -53,13 +53,19 @@ native_string_limit(NativeStringKind kind)
   return 0;
 }
 
+/*
+ * Copy a validated binary into the caller's buffer and NUL-terminate it.
+ * `buf_size` must cover the category limit plus the terminator; returning
+ * false means the input (or a too-small buffer) is invalid, never OOM.
+ */
 bool
-exa_load_string(ErlNifEnv *env, ERL_NIF_TERM arg, NativeStringKind kind, char **result)
+exa_load_string(ErlNifEnv *env, ERL_NIF_TERM arg, NativeStringKind kind, char *buf, size_t buf_size)
 {
   ErlNifBinary bin;
   size_t limit = native_string_limit(kind);
-  size_t allocation_size;
-  char *value;
+
+  if (buf_size <= limit)
+    return false;
 
   if (!enif_inspect_binary(env, arg, &bin))
     return false;
@@ -70,17 +76,8 @@ exa_load_string(ErlNifEnv *env, ERL_NIF_TERM arg, NativeStringKind kind, char **
   if (memchr(bin.data, '\0', bin.size) != NULL)
     return false;
 
-  if (bin.size > SIZE_MAX - 1)
-    return false;
-
-  allocation_size = bin.size + 1;
-  value = malloc(allocation_size);
-  if (value == NULL)
-    return false;
-
-  memcpy(value, bin.data, bin.size);
-  value[bin.size] = '\0';
-  *result = value;
+  memcpy(buf, bin.data, bin.size);
+  buf[bin.size] = '\0';
 
   return true;
 }
@@ -130,8 +127,14 @@ exa_make_binary(ErlNifEnv *env, char *data, ERL_NIF_TERM *result)
     return true;
   }
 
-  *result = enif_raise_exception(env, enif_make_atom(env, "ex_astro_alloc_failed"));
+  *result = exa_raise_alloc_failed(env);
   return false;
+}
+
+ERL_NIF_TERM
+exa_raise_alloc_failed(ErlNifEnv *env)
+{
+  return enif_raise_exception(env, enif_make_atom(env, "ex_astro_alloc_failed"));
 }
 
 ERL_NIF_TERM
