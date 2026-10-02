@@ -1,7 +1,7 @@
 [
   tools: [
     {:markdown,
-     command: "prettier \"**/*.{md,livemd}\" --log-level warn",
+     command: "prettier \"**/*.{md,livemd}\" --check --log-level warn",
      fix: "prettier \"**/*.{md,livemd}\" --write --log-level warn"}
   ]
 ]
