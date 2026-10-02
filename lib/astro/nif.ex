@@ -52,13 +52,13 @@ defmodule Astro.NIF do
   @spec tcb2tdb(float(), float()) :: {float(), float()}
   def tcb2tdb(_tcb1, _tcb2), do: :erlang.nif_error({:error, :not_loaded})
 
-  @spec str2et(String.t()) :: float()
+  @spec str2et(String.t()) :: {:ok, float()} | {:error, String.t()}
   def str2et(_time), do: :erlang.nif_error({:error, :not_loaded})
 
-  @spec utc2et(String.t()) :: float()
+  @spec utc2et(String.t()) :: {:ok, float()} | {:error, String.t()}
   def utc2et(_time), do: :erlang.nif_error({:error, :not_loaded})
 
-  @spec unitim(float(), String.t(), String.t()) :: float()
+  @spec unitim(float(), String.t(), String.t()) :: {:ok, float()} | {:error, String.t()}
   def unitim(_epoch, _insys, _outsys), do: :erlang.nif_error({:error, :not_loaded})
 
   @spec sec2day(float()) :: {float(), float()}

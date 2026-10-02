@@ -30,7 +30,10 @@ defmodule Astro.Time do
   ## Conventions
 
   - JD-based functions accept and return `{jd1, jd2}`.
-  - `str2et/1` and `utc2et/1` return scalar ephemeris seconds.
+  - `str2et/1`, `utc2et/1`, and `unitim/3` read the SPICE kernel pool (they
+    need a leap-second kernel) and return `{:ok, value}` or
+    `{:error, message}`, like the other kernel-dependent modules. The ERFA
+    conversions need no kernels and return bare values.
   - `unitim/3` remains a low-level SPICE primitive and uses scalar numeric
     epochs because the accepted units are not all Julian Dates.
   - `jd_to_float/1` and `jd_from_float/1` are explicit interop helpers for code
@@ -58,7 +61,7 @@ defmodule Astro.Time do
       true
 
       iex> Astro.Time.str2et("2000 JAN 01 12:00:00 TDB")
-      0.0
+      {:ok, 0.0}
   """
 
   alias Astro.NIF
@@ -292,17 +295,19 @@ defmodule Astro.Time do
   @doc """
   Parse a time string and convert it to SPICE Ephemeris Time (`ET`).
 
-  Returns TDB seconds past J2000.
+  Returns `{:ok, et}` with TDB seconds past J2000, or `{:error, message}` when
+  SPICE cannot parse the string or a required kernel is not loaded.
   """
-  @spec str2et(String.t()) :: ephemeris_time()
+  @spec str2et(String.t()) :: {:ok, ephemeris_time()} | {:error, String.t()}
   def str2et(time), do: NIF.str2et(time)
 
   @doc """
   Convert a UTC time string to SPICE Ephemeris Time (`ET`).
 
-  Returns TDB seconds past J2000.
+  Returns `{:ok, et}` with TDB seconds past J2000, or `{:error, message}` when
+  SPICE cannot parse the string or no leap-second kernel is loaded.
   """
-  @spec utc2et(String.t()) :: ephemeris_time()
+  @spec utc2et(String.t()) :: {:ok, ephemeris_time()} | {:error, String.t()}
   def utc2et(time), do: NIF.utc2et(time)
 
   @doc """
@@ -340,9 +345,10 @@ defmodule Astro.Time do
   Convert an epoch between SPICE uniform numeric time systems.
 
   This is the low-level SPICE interface and therefore uses scalar numeric
-  epochs rather than split Julian Dates.
+  epochs rather than split Julian Dates. Returns `{:error, message}` for an
+  unknown time system or when no leap-second kernel is loaded.
   """
-  @spec unitim(float(), uniform_time_system(), uniform_time_system()) :: float()
+  @spec unitim(float(), uniform_time_system(), uniform_time_system()) :: {:ok, float()} | {:error, String.t()}
   def unitim(epoch, insys, outsys), do: NIF.unitim(epoch, insys, outsys)
 
   @doc """

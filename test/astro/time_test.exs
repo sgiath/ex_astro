@@ -69,8 +69,9 @@ defmodule Astro.TimeTest do
   end
 
   test "et and day second helpers are consistent" do
-    assert Astro.Time.str2et("2000 JAN 01 12:00:00 TDB") == 0.0
-    assert_in_delta Astro.Time.utc2et("2000-01-01T12:00:00"), 64.18392728473108, 1.0e-9
+    assert Astro.Time.str2et("2000 JAN 01 12:00:00 TDB") == {:ok, 0.0}
+    assert {:ok, et} = Astro.Time.utc2et("2000-01-01T12:00:00")
+    assert_in_delta et, 64.18392728473108, 1.0e-9
 
     julian_date = {2_451_545.0, 0.25}
 
@@ -84,11 +85,9 @@ defmodule Astro.TimeTest do
   end
 
   test "datetime and ephemeris time helpers agree with SPICE and round trip" do
-    assert_in_delta(
-      Astro.Time.to_et(~U[2000-01-01 12:00:00Z]),
-      Astro.Time.utc2et("2000-01-01T12:00:00"),
-      1.0e-3
-    )
+    {:ok, utc_et} = Astro.Time.utc2et("2000-01-01T12:00:00")
+
+    assert_in_delta Astro.Time.to_et(~U[2000-01-01 12:00:00Z]), utc_et, 1.0e-3
 
     datetime = ~N[2026-08-14 00:00:00]
 
@@ -184,11 +183,8 @@ defmodule Astro.TimeTest do
           {2_451_545.0, 0.25},
           {2_460_000.0, 0.123456}
         ] do
-      expected_tdb =
-        tt
-        |> Astro.Time.jd_to_float()
-        |> Astro.Time.unitim("JDTDT", "JDTDB")
-        |> Astro.Time.jd_from_float()
+      {:ok, tdb} = tt |> Astro.Time.jd_to_float() |> Astro.Time.unitim("JDTDT", "JDTDB")
+      expected_tdb = Astro.Time.jd_from_float(tdb)
 
       actual_tdb =
         tt

@@ -12,6 +12,9 @@
   `to_et/1`; non-UTC offsets were previously ignored
 - prefix SPICE error messages with their short code (`SPICE(...) -- ...`);
   `Astro.Support.spkobj/1` now grows past 1024 IDs as documented
+- **breaking:** `Astro.Time.str2et/1`, `utc2et/1`, and `unitim/3` return
+  `{:ok, value}`; they already returned `{:error, message}` on SPICE failures
+  despite specs promising a bare float
 
 ## v0.3.0 (2026-08-15)
 

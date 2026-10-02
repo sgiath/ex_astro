@@ -295,7 +295,7 @@ exa_nif_str2et(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
   }
 
   exa_cspice_unlock();
-  result = enif_make_double(env, et);
+  result = exa_ok_result(env, enif_make_double(env, et));
 
 cleanup:
   free(timstr);
@@ -335,7 +335,7 @@ exa_nif_utc2et(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
   }
 
   exa_cspice_unlock();
-  result = enif_make_double(env, et);
+  result = exa_ok_result(env, enif_make_double(env, et));
 
 cleanup:
   free(utcstr);
@@ -376,7 +376,7 @@ exa_nif_unitim(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
   }
 
   exa_cspice_unlock();
-  result = enif_make_double(env, converted_epoch);
+  result = exa_ok_result(env, enif_make_double(env, converted_epoch));
 
 cleanup:
   free(insys);

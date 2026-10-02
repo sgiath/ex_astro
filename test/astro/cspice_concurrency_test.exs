@@ -16,7 +16,8 @@ defmodule Astro.CSPICEConcurrencyTest do
     ]
 
     success = fn ->
-      assert_in_delta Astro.Time.utc2et("2000-01-01T12:00:00"), 64.18392728473108, 1.0e-9
+      assert {:ok, et} = Astro.Time.utc2et("2000-01-01T12:00:00")
+      assert_in_delta et, 64.18392728473108, 1.0e-9
       assert {:ok, state} = Astro.Ephemeris.conics(valid_elts, 60.0)
       assert length(state) == 6
     end
