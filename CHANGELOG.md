@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **breaking:** `Astro.Orbit.osculating/4` raises `ArgumentError` for options
+  other than `:frame`, `:abcorr`, and `:mu`; misspelled options were silently
+  ignored. `Astro.Orbit` gains a `frame` field, set by `osculating/4` and `nil`
+  for orbits built with `from_elements/1` or `from_state/3`
 - subtract J2000 from the larger part of the Julian date in
   `Astro.Time.day2sec/1`; small-first splits such as `{1.0e-9, 2451545.0}`
   previously lost the small part's precision

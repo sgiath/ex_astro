@@ -11,7 +11,9 @@ defmodule Astro.Orbit do
   [`oscelt_c`](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/oscelt_c.html):
   periapsis radius, eccentricity, inclination, longitude of the ascending node,
   argument of periapsis, mean anomaly at epoch, epoch, and gravitational
-  parameter.
+  parameter. `frame` names the SPICE reference frame the angular elements are
+  measured in; it is `nil` when the orbit was built from raw elements or a
+  state vector, whose frame the caller tracks.
   """
 
   alias Astro.Ephemeris
@@ -32,10 +34,11 @@ defmodule Astro.Orbit do
           argp: float(),
           m0: float(),
           t0: float(),
-          mu: float()
+          mu: float(),
+          frame: String.t() | nil
         }
 
-  defstruct [:rp, :ecc, :inc, :lnode, :argp, :m0, :t0, :mu]
+  defstruct [:rp, :ecc, :inc, :lnode, :argp, :m0, :t0, :mu, :frame]
 
   @doc """
   Build an orbit from the eight elements returned by `Astro.Ephemeris.oscelt/3`.
@@ -89,16 +92,20 @@ defmodule Astro.Orbit do
   The default frame is `"J2000"` and the default aberration correction is
   `"NONE"`. Pass `:mu` to override the observer's gravitational parameter;
   otherwise it is read from the loaded kernels with `Astro.Support.gm/1`.
+  The returned orbit records the frame in its `frame` field.
+
+  Raises `ArgumentError` for options other than `:frame`, `:abcorr`, and `:mu`.
   """
   @spec osculating(String.t(), String.t(), float(), keyword()) ::
           {:ok, t()} | {:error, String.t()}
   def osculating(target, observer, et, opts \\ []) do
-    frame = Keyword.get(opts, :frame, "J2000")
-    abcorr = Keyword.get(opts, :abcorr, "NONE")
+    opts = Keyword.validate!(opts, [:mu, frame: "J2000", abcorr: "NONE"])
+    frame = Keyword.fetch!(opts, :frame)
 
     with {:ok, mu} <- resolve_mu(opts, observer),
-         {:ok, state, _light_time} <- Ephemeris.spkezr(target, et, frame, abcorr, observer) do
-      from_state(state, et, mu)
+         {:ok, state, _light_time} <- Ephemeris.spkezr(target, et, frame, opts[:abcorr], observer),
+         {:ok, orbit} <- from_state(state, et, mu) do
+      {:ok, %{orbit | frame: frame}}
     end
   end
 

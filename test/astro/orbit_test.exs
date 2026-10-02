@@ -137,6 +137,18 @@ defmodule Astro.OrbitTest do
              )
 
     assert overridden.mu == 1.0e11
+    assert orbit.frame == "ECLIPJ2000"
+  end
+
+  test "osculating records the default frame" do
+    assert {:ok, orbit} = Astro.Orbit.osculating("3", "10", 0.0)
+    assert orbit.frame == "J2000"
+  end
+
+  test "osculating rejects unknown options" do
+    assert_raise ArgumentError, ~r/unknown keys \[:fram\]/, fn ->
+      Astro.Orbit.osculating("3", "10", 0.0, fram: "ECLIPJ2000")
+    end
   end
 
   defp norm(vector), do: :math.sqrt(dot(vector, vector))

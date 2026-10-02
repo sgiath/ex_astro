@@ -228,6 +228,7 @@ order:
 | `m0`    | $M_0$    | mean anomaly at epoch, rad                                      |
 | `t0`    | $t_0$    | epoch, ET seconds                                               |
 | `mu`    | $\mu$    | gravitational parameter $GM$ of the central body, km³/s²        |
+| `frame` |          | SPICE reference frame of the angles, here `"ECLIPJ2000"`        |
 
 Two of these deserve a note. SPICE stores the periapsis radius rather than
 the semi-major axis because $r_p$ stays finite and meaningful for parabolic
