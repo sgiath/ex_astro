@@ -173,7 +173,9 @@ et = Astro.Time.to_et(epoch)
 ## A state vector from the ephemeris
 
 `Astro.Ephemeris.spkezr/5` returns the position and velocity of one body
-relative to another, in any SPICE reference frame. Bodies are named by NAIF ID
+relative to another, in any SPICE reference frame, as an `Astro.State`
+struct: `position` in km and `velocity` in km/s, each an `{x, y, z}`
+tuple. Bodies are named by NAIF ID
 strings (`"10"` = Sun, `"3"` = Earth-Moon barycenter, `"2000001"` = Ceres) or
 by name (`"EARTH"` works too - see `Astro.Support.bodn2c/1`).
 
@@ -192,12 +194,12 @@ add a distracting ripple to the osculating elements.
 ```elixir
 # State of the Earth-Moon barycenter relative to the Sun, ecliptic frame,
 # no aberration correction.
-{:ok, [x, y, z, vx, vy, vz] = state, light_time} =
+{:ok, state, light_time} =
   Astro.Ephemeris.spkezr("3", et, "ECLIPJ2000", "NONE", "10")
 
 %{
-  position_km: {x, y, z},
-  velocity_km_s: {vx, vy, vz},
+  position_km: state.position,
+  velocity_km_s: state.velocity,
   light_time_s: light_time
 }
 ```
@@ -215,8 +217,8 @@ switch off, the elements drift slowly, which is why they carry their epoch
 
 `Astro.Orbit.osculating/4` looks up the state (the same `spkezr` call as
 above), reads the observer's gravitational parameter from the loaded PCK, and
-converts with SPICE's `oscelt`. The struct fields follow SPICE's element
-order:
+converts the state with `Astro.Orbit.from_state/3` (SPICE's `oscelt` under
+the hood). The struct fields follow SPICE's element order:
 
 | Field   | Symbol   | Meaning                                                         |
 | ------- | -------- | --------------------------------------------------------------- |
@@ -338,17 +340,21 @@ true_anom = Astro.Orbit.true_anomaly_at(mars, et)
 ## Closing the loop: elements back to a state
 
 `Astro.Orbit.state_at/2` propagates an orbit to any epoch and returns the
-Cartesian state (SPICE's `conics` under the hood). Evaluated at the orbit's
-own epoch it must reproduce the state vector the elements came from - a
-round-trip through the entire element machinery. The agreement is at the
-numerical-noise level: sub-millimeter over a distance of 1 au.
+Cartesian state as another `Astro.State` (SPICE's `conics` under the hood).
+Evaluated at the orbit's own epoch it must reproduce the state vector the
+elements came from - a round-trip through the entire element machinery. The
+agreement is at the numerical-noise level: sub-millimeter over a distance of
+1 au.
 
 ```elixir
-{:ok, [x2, y2, z2, vx2, vy2, vz2]} = Astro.Orbit.state_at(earth, et)
+{:ok, propagated} = Astro.Orbit.state_at(earth, et)
+distance = fn {ax, ay, az}, {bx, by, bz} ->
+  :math.sqrt((ax - bx) ** 2 + (ay - by) ** 2 + (az - bz) ** 2)
+end
 
 %{
-  position_error_km: :math.sqrt((x2 - x) ** 2 + (y2 - y) ** 2 + (z2 - z) ** 2),
-  velocity_error_km_s: :math.sqrt((vx2 - vx) ** 2 + (vy2 - vy) ** 2 + (vz2 - vz) ** 2)
+  position_error_km: distance.(propagated.position, state.position),
+  velocity_error_km_s: distance.(propagated.velocity, state.velocity)
 }
 ```
 

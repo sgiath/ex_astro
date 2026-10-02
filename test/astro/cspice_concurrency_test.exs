@@ -4,22 +4,21 @@ defmodule Astro.CSPICEConcurrencyTest do
   @iterations 80
 
   test "concurrent SPICE-backed calls keep successful results and errors isolated" do
-    valid_elts = [
-      7_000.0,
-      0.01,
-      0.1,
-      0.2,
-      0.3,
-      0.4,
-      0.0,
-      398_600.435_436
-    ]
+    orbit = %Astro.Orbit{
+      rp: 7_000.0,
+      ecc: 0.01,
+      inc: 0.1,
+      lnode: 0.2,
+      argp: 0.3,
+      m0: 0.4,
+      t0: 0.0,
+      mu: 398_600.435_436
+    }
 
     success = fn ->
       assert {:ok, et} = Astro.Time.utc2et("2000-01-01T12:00:00")
       assert_in_delta et, 64.18392728473108, 1.0e-9
-      assert {:ok, state} = Astro.Ephemeris.conics(valid_elts, 60.0)
-      assert length(state) == 6
+      assert {:ok, %Astro.State{}} = Astro.Orbit.state_at(orbit, 60.0)
     end
 
     failure = fn ->

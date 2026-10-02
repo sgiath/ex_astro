@@ -1,22 +1,43 @@
 defmodule Astro.Orbit do
   @moduledoc """
-  Work with SPICE osculating orbital elements.
+  Work with SPICE osculating conic orbital elements.
 
-  Distances are expressed in kilometers, angles in radians, and epochs in
-  Ephemeris Time (`ET`) seconds past J2000. The elements describe an
-  instantaneous conic at their epoch rather than a long-term perturbation
-  model.
+  An orbit is the conic that matches a body's position and velocity at one
+  epoch: the path the body would follow if only its primary's gravity acted on
+  it. The elements describe that instantaneous conic rather than a long-term
+  perturbation model. Distances are expressed in kilometers, angles in radians,
+  and epochs in Ephemeris Time (`ET`) seconds past J2000 TDB.
 
-  The struct fields follow the element order used by SPICE's
-  [`oscelt_c`](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/oscelt_c.html):
-  periapsis radius, eccentricity, inclination, longitude of the ascending node,
-  argument of periapsis, mean anomaly at epoch, epoch, and gravitational
-  parameter. `frame` names the SPICE reference frame the angular elements are
-  measured in; it is `nil` when the orbit was built from raw elements or a
-  state vector, whose frame the caller tracks.
+  `from_state/3` derives the elements from an `Astro.State` with SPICE's
+  [`oscelt_c`](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/oscelt_c.html),
+  `state_at/2` propagates them back to a state at any epoch with
+  [`conics_c`](https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/conics_c.html),
+  and `osculating/4` looks the state up in the loaded ephemeris first. To use
+  known elements, build the struct directly:
+
+      %Astro.Orbit{rp: 7_000.0, ecc: 0.01, inc: 0.1, lnode: 0.2, argp: 0.3, m0: 0.4, t0: 0.0, mu: 398_600.435_436}
+
+  The struct fields follow SPICE's element order:
+
+    - `rp` - perifocal distance (periapsis radius), km
+    - `ecc` - eccentricity
+    - `inc` - inclination, rad
+    - `lnode` - longitude of the ascending node, rad
+    - `argp` - argument of periapsis, rad
+    - `m0` - mean anomaly at epoch, rad
+    - `t0` - epoch, ET seconds; the instant at which the elements give the
+      body's state
+    - `mu` - gravitational parameter (GM) of the primary body, km^3/s^2
+
+  The same elements describe all three types of conic orbit: elliptic,
+  parabolic, and hyperbolic. `frame` names the SPICE reference frame the
+  angular elements are measured in; it is `nil` when the orbit was built
+  directly or from a state, whose frame the caller tracks.
   """
 
   alias Astro.Ephemeris
+  alias Astro.NIF
+  alias Astro.State
   alias Astro.Support
 
   # Bisection halves the bracket on every rejected Newton step, so 100
@@ -25,7 +46,6 @@ defmodule Astro.Orbit do
   # Step size below which the estimate is accurate to double precision.
   @kepler_tolerance 1.0e-15
 
-  @type vec3 :: {float(), float(), float()}
   @type t :: %__MODULE__{
           rp: float(),
           ecc: float(),
@@ -41,48 +61,24 @@ defmodule Astro.Orbit do
   defstruct [:rp, :ecc, :inc, :lnode, :argp, :m0, :t0, :mu, :frame]
 
   @doc """
-  Build an orbit from the eight elements returned by `Astro.Ephemeris.oscelt/3`.
-  """
-  @spec from_elements([float()]) :: t()
-  def from_elements([rp, ecc, inc, lnode, argp, m0, t0, mu])
-      when is_float(rp) and is_float(ecc) and is_float(inc) and is_float(lnode) and is_float(argp) and is_float(m0) and
-             is_float(t0) and is_float(mu) do
-    %__MODULE__{
-      rp: rp,
-      ecc: ecc,
-      inc: inc,
-      lnode: lnode,
-      argp: argp,
-      m0: m0,
-      t0: t0,
-      mu: mu
-    }
-  end
+  Derive osculating elements from a Cartesian state.
 
-  @doc """
-  Return the orbit's elements in the order expected by `Astro.Ephemeris.conics/2`.
-  """
-  @spec to_elements(t()) :: [float()]
-  def to_elements(%__MODULE__{} = orbit) do
-    [
-      orbit.rp,
-      orbit.ecc,
-      orbit.inc,
-      orbit.lnode,
-      orbit.argp,
-      orbit.m0,
-      orbit.t0,
-      orbit.mu
-    ]
-  end
+  `state` is the body's state relative to its primary at epoch `et` (ET
+  seconds past J2000), in km and km/s. It must be expressed in an inertial
+  reference frame; the elements are measured in that frame. `mu` is the
+  primary's gravitational parameter in km^3/s^2. The returned orbit's epoch
+  `t0` is `et` and its `frame` is `nil`.
 
-  @doc """
-  Derive osculating elements from a Cartesian state vector.
+  SPICE rejections, such as a non-positive `mu` or a zero position or velocity,
+  return `{:error, message}`.
+
+  More info at
+  https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/oscelt_c.html
   """
-  @spec from_state([float()], float(), float()) :: {:ok, t()} | {:error, String.t()}
-  def from_state(state, et, mu) do
-    with {:ok, elements} <- Ephemeris.oscelt(state, et, mu) do
-      {:ok, from_elements(elements)}
+  @spec from_state(State.t(), float(), float()) :: {:ok, t()} | {:error, String.t()}
+  def from_state(%State{position: {x, y, z}, velocity: {vx, vy, vz}}, et, mu) do
+    with {:ok, [rp, ecc, inc, lnode, argp, m0, t0, elements_mu]} <- NIF.oscelt([x, y, z, vx, vy, vz], et, mu) do
+      {:ok, %__MODULE__{rp: rp, ecc: ecc, inc: inc, lnode: lnode, argp: argp, m0: m0, t0: t0, mu: elements_mu}}
     end
   end
 
@@ -110,10 +106,27 @@ defmodule Astro.Orbit do
   end
 
   @doc """
-  Propagate an orbit to an epoch and return its Cartesian state vector.
+  Propagate an orbit to an epoch and return its Cartesian state.
+
+  `et` is the epoch of the returned state in ET seconds past J2000. The state
+  is relative to the primary, in km and km/s, and expressed in the frame the
+  elements are measured in. Elliptic, parabolic, and hyperbolic orbits are all
+  supported.
+
+  SPICE rejections, such as a non-positive `rp` or `mu` or a negative `ecc`,
+  return `{:error, message}`.
+
+  More info at
+  https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/conics_c.html
   """
-  @spec state_at(t(), float()) :: {:ok, [float()]} | {:error, String.t()}
-  def state_at(%__MODULE__{} = orbit, et), do: Ephemeris.conics(to_elements(orbit), et)
+  @spec state_at(t(), float()) :: {:ok, State.t()} | {:error, String.t()}
+  def state_at(%__MODULE__{} = orbit, et) do
+    elements = [orbit.rp, orbit.ecc, orbit.inc, orbit.lnode, orbit.argp, orbit.m0, orbit.t0, orbit.mu]
+
+    with {:ok, [x, y, z, vx, vy, vz]} <- NIF.conics(elements, et) do
+      {:ok, %State{position: {x, y, z}, velocity: {vx, vy, vz}}}
+    end
+  end
 
   @doc """
   Return the semi-major axis in kilometers.
@@ -237,7 +250,7 @@ defmodule Astro.Orbit do
   The tuple contains the unit vectors toward periapsis, 90 degrees ahead in the
   orbital plane, and normal to the orbital plane.
   """
-  @spec perifocal_basis(t()) :: {vec3(), vec3(), vec3()}
+  @spec perifocal_basis(t()) :: {State.vec3(), State.vec3(), State.vec3()}
   def perifocal_basis(%__MODULE__{argp: argp, lnode: lnode, inc: inc}) do
     cw = :math.cos(argp)
     sw = :math.sin(argp)

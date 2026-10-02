@@ -113,13 +113,17 @@ iex> Astro.Time.day2sec(jd)
 
 ## Ephemeris and Orbit APIs
 
-`Astro.Ephemeris` provides the low-level SPICE state and conic operations. `Astro.Orbit` adds
-named osculating elements, propagation, derived quantities, anomaly calculations, and perifocal
-geometry:
+`Astro.Ephemeris` looks up SPICE body states as `Astro.State` structs: `position` in km and
+`velocity` in km/s. `Astro.Orbit` converts states to named osculating elements and back, and adds
+propagation, derived quantities, anomaly calculations, and perifocal geometry:
 
 ```elixir
 # UTC timestamp -> SPICE ephemeris time
 et = Astro.Time.to_et(~U[2026-08-14 00:00:00Z])
+
+# state of the Earth-Moon barycenter relative to the Sun
+{:ok, %Astro.State{position: {x, y, z}, velocity: {vx, vy, vz}}, light_time_s} =
+  Astro.Ephemeris.spkezr("3", et, "ECLIPJ2000", "NONE", "10")
 
 # osculating orbit of Earth around the Sun in the ecliptic frame
 {:ok, orbit} =

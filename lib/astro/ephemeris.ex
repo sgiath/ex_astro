@@ -1,6 +1,9 @@
 defmodule Astro.Ephemeris do
   @moduledoc """
-  Calculation state of objects
+  Look up the state (position and velocity) of ephemeris objects from the loaded SPK kernels.
+
+  Every lookup returns an `Astro.State` with the position in km and the velocity in km/s. To turn
+  a state into orbital elements, or to propagate elements back to a state, use `Astro.Orbit`.
 
   ## Aberration corrections
 
@@ -63,6 +66,9 @@ defmodule Astro.Ephemeris do
   native strings raise `ArgumentError`.
   """
 
+  alias Astro.NIF
+  alias Astro.State
+
   @doc """
   Determine the apparent, true, or geometric state of a body with respect to another body relative
   to a user specified reference frame.
@@ -102,20 +108,17 @@ defmodule Astro.Ephemeris do
 
   ## Output
 
-    - `state` - is a Cartesian state vector representing the position and velocity of the target
-      body relative to the specified observer. `state` is corrected for the specified aberrations,
-      and is expressed with respect to the reference frame specified by `ref`. The first three
-      components of `state` represent the x, y and z-components of the target's position; the last
-      three components form the corresponding velocity vector.
+    - `state` - is an `Astro.State` holding the position and velocity of the target body
+      relative to the specified observer. `state` is corrected for the specified aberrations,
+      and is expressed with respect to the reference frame specified by `ref_plane`. Its
+      `position` is the `{x, y, z}` vector of the target's position in km; its `velocity` is
+      the corresponding `{vx, vy, vz}` velocity vector in km/s.
 
-      The position component of `state` points from the observer's location at `et` to the
+      `state.position` points from the observer's location at `et` to the
       aberration-corrected location of the target. Note that the sense of the position vector is
       independent of the direction of radiation travel implied by the aberration correction.
 
-      The velocity component of `state` is the derivative with respect to time of the position
-      component of `state`.
-
-      Units are always km and km/sec.
+      `state.velocity` is the derivative with respect to time of `state.position`.
 
       Non-inertial frames are treated as follows: letting `ltcent` be the one-way light time between
       the observer and the central body associated with the frame, the orientation of the frame is
@@ -141,9 +144,9 @@ defmodule Astro.Ephemeris do
   Get geometric state of Earth relative to Solar System Barycenter in the
   `J2000` frame at the J2000 epoch.
 
-      iex> {:ok, state, lt} = Astro.Ephemeris.spkezr("EARTH", 0.0, "J2000", "NONE", "SSB")
-      iex> length(state)
-      6
+      iex> {:ok, %Astro.State{position: {x, y, z}}, lt} = Astro.Ephemeris.spkezr("EARTH", 0.0, "J2000", "NONE", "SSB")
+      iex> Float.round(:math.sqrt(x * x + y * y + z * z) / 149_597_870.7, 2)
+      0.98
       iex> is_float(lt)
       true
 
@@ -156,8 +159,10 @@ defmodule Astro.Ephemeris do
           ref_plane :: String.t(),
           abcorr :: String.t(),
           observer :: String.t()
-        ) :: {:ok, state :: [float()], lt :: float()} | {:error, String.t()}
-  def spkezr(target, et, ref_plane, ab_corr, observer), do: Astro.NIF.spkezr(target, et, ref_plane, ab_corr, observer)
+        ) :: {:ok, State.t(), lt :: float()} | {:error, String.t()}
+  def spkezr(target, et, ref_plane, ab_corr, observer) do
+    to_state(NIF.spkezr(target, et, ref_plane, ab_corr, observer))
+  end
 
   @doc """
   Determine the apparent, true, or geometric state of a body with respect to another body relative
@@ -166,14 +171,17 @@ defmodule Astro.Ephemeris do
   Return the state (position and velocity) of a target body relative to an observing body,
   optionally corrected for light time (planetary aberration) and stellar aberration.
 
+  This is `spkezr/5` with integer NAIF IDs for the target and observer; the returned
+  `Astro.State` and light time are described there.
+
   ## Example
 
   Get geometric state of Earth relative to Solar System Barycenter in the
   `J2000` frame at the J2000 epoch.
 
-      iex> {:ok, state, lt} = Astro.Ephemeris.spkez(399, 0.0, "J2000", "NONE", 0)
-      iex> length(state)
-      6
+      iex> {:ok, %Astro.State{position: {x, y, z}}, lt} = Astro.Ephemeris.spkez(399, 0.0, "J2000", "NONE", 0)
+      iex> Float.round(:math.sqrt(x * x + y * y + z * z) / 149_597_870.7, 2)
+      0.98
       iex> is_float(lt)
       true
 
@@ -186,21 +194,27 @@ defmodule Astro.Ephemeris do
           ref_plane :: String.t(),
           aberration_correction :: String.t(),
           observer :: integer()
-        ) :: {:ok, state :: [float()], lt :: float()} | {:error, String.t()}
-  def spkez(target, et, ref_plane, ab_corr, observer), do: Astro.NIF.spkez(target, et, ref_plane, ab_corr, observer)
+        ) :: {:ok, State.t(), lt :: float()} | {:error, String.t()}
+  def spkez(target, et, ref_plane, ab_corr, observer) do
+    to_state(NIF.spkez(target, et, ref_plane, ab_corr, observer))
+  end
 
   @doc """
   Compute the geometric state (position and velocity) of a target body relative to an observing
   body.
+
+  Returns the `Astro.State` of the target relative to the observer, with the position in km and
+  the velocity in km/s, and the one-way light time in seconds. No aberration corrections are
+  applied.
 
   ## Example
 
   Get geometric state of Earth relative to Solar System Barycenter in the
   `J2000` frame at the J2000 epoch.
 
-      iex> {:ok, state, lt} = Astro.Ephemeris.spkgeo(399, 0.0, "J2000", 0)
-      iex> length(state)
-      6
+      iex> {:ok, %Astro.State{position: {x, y, z}}, lt} = Astro.Ephemeris.spkgeo(399, 0.0, "J2000", 0)
+      iex> Float.round(:math.sqrt(x * x + y * y + z * z) / 149_597_870.7, 2)
+      0.98
       iex> is_float(lt)
       true
 
@@ -212,89 +226,11 @@ defmodule Astro.Ephemeris do
           et :: float(),
           ref_plane :: String.t(),
           observer :: integer()
-        ) :: {:ok, state :: [float()], lt :: float()} | {:error, String.t()}
-  def spkgeo(target, et, ref_plane, observer), do: Astro.NIF.spkgeo(target, et, ref_plane, observer)
+        ) :: {:ok, State.t(), lt :: float()} | {:error, String.t()}
+  def spkgeo(target, et, ref_plane, observer) do
+    to_state(NIF.spkgeo(target, et, ref_plane, observer))
+  end
 
-  @doc """
-  Determine conic elements from state
-
-  Determine the set of osculating conic orbital elements that corresponds to the state (position,
-  velocity) of a body at some epoch.
-
-  ## Input
-
-  - `state` - is the state (position and velocity) of the body at some epoch. Components are x, y,
-    z, dx/dt, dy/dt, dz/dt. `state` must be expressed relative to an inertial reference frame. Units
-    are km and km/sec.
-
-  - `et` - is the epoch of the input state, in ephemeris seconds past J2000.
-  - `mu` - is the gravitational parameter (GM, km^3 / sec^2 ) of the primary body.
-
-  ## Output
-
-  - `elts` - are equivalent conic elements describing the orbit of the body around its primary. The
-    elements are, in order:
-
-        rp      Perifocal distance.
-        ecc     Eccentricity.
-        inc     Inclination.
-        lnode   Longitude of the ascending node.
-        argp    Argument of periapsis.
-        m0      Mean anomaly at epoch.
-        t0      Epoch.
-        mu      Gravitational parameter.
-
-    The epoch of the elements is the epoch of the input state. Units are km, rad, rad/sec. The same
-    elements are used to describe all three types (elliptic, hyperbolic, and parabolic) of conic
-    orbit.
-
-  More info at
-  https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/oscelt_c
-  """
-  @spec oscelt(state :: [float()], et :: float(), mu :: float()) ::
-          {:ok, elts :: [float()]} | {:error, String.t()}
-  def oscelt(state, et, mu), do: Astro.NIF.oscelt(state, et, mu)
-
-  @doc """
-  Determine state from conic elements
-
-  Determine the state (position, velocity) of an orbiting body from a set of elliptic, hyperbolic,
-  or parabolic orbital elements.
-
-  ## Input
-
-  - `elts` - are conic osculating elements describing the orbit of a body around a primary.
-    The elements are, in order:
-
-        RP      Perifocal distance.
-        ECC     Eccentricity.
-        INC     Inclination.
-        LNODE   Longitude of the ascending node.
-        ARGP    Argument of periapse.
-        M0      Mean anomaly at epoch.
-        T0      Epoch.
-        MU      Gravitational parameter.
-
-    Units are km, rad, rad/sec, km^3/sec^2.
-
-    The epoch `T0` is given in ephemeris seconds past J2000. `T0` is the instant at which the state
-    of the body is specified by the elements.
-
-    The same elements are used to describe all three types (elliptic, hyperbolic, and parabolic)
-    of conic orbit.
-
-  - `et` - is the time at which the state of the orbiting body is to be determined, in ephemeris seconds
-    J2000.
-
-  ## Output
-
-  - `state` - is the state (position and velocity) of the body at time `et`. Components are x, y, z,
-    dx/dt, dy/dt, dz/dt.
-
-  More info at
-  https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/conics_c
-  """
-  @spec conics(elts :: [float()], et :: float()) ::
-          {:ok, state :: [float()]} | {:error, String.t()}
-  def conics(elts, et), do: Astro.NIF.conics(elts, et)
+  defp to_state({:ok, [x, y, z, vx, vy, vz], lt}), do: {:ok, %State{position: {x, y, z}, velocity: {vx, vy, vz}}, lt}
+  defp to_state({:error, _message} = error), do: error
 end

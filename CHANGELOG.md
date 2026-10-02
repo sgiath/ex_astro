@@ -6,10 +6,20 @@
   order with each kernel's download URL and SPICE ID word check.
   `mix astro.kernels` downloads and validates exactly this set; the catalog
   changes between releases as NAIF publishes newer kernels
+- **breaking:** states are `%Astro.State{position: {x, y, z}, velocity: {vx, vy, vz}}`
+  structs (km and km/s) instead of six-element lists. `Astro.Ephemeris.spkezr/5`,
+  `spkez/5`, and `spkgeo/4` return `{:ok, %Astro.State{}, lt}`;
+  `Astro.Orbit.from_state/3` takes and `Astro.Orbit.state_at/2` returns an
+  `Astro.State`. `oscelt/3` and `conics/2` are removed from `Astro.Ephemeris`:
+  use `Astro.Orbit.from_state/3` and `Astro.Orbit.state_at/2`, which work with
+  `%Astro.Orbit{}` instead of eight-element lists. `from_elements/1` and
+  `to_elements/1` are removed from `Astro.Orbit`; build orbits from known
+  elements with `%Astro.Orbit{rp: ..., ecc: ..., ...}` and read the fields
+  directly
 - **breaking:** `Astro.Orbit.osculating/4` raises `ArgumentError` for options
   other than `:frame`, `:abcorr`, and `:mu`; misspelled options were silently
   ignored. `Astro.Orbit` gains a `frame` field, set by `osculating/4` and `nil`
-  for orbits built with `from_elements/1` or `from_state/3`
+  for orbits built directly or with `from_state/3`
 - ERFA date and time rejections in `Astro.Time` raise `ArgumentError` with a
   message naming the invalid calendar field and value (or the out-of-range
   Julian Date) instead of a bare `argument error`
