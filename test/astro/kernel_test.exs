@@ -12,11 +12,11 @@ defmodule Astro.KernelTest do
 
     assert :ok = Astro.Kernel.load(path)
     assert {:ok, [42.0]} = Astro.Support.bodvcd(100_002, "RUNTIME")
-    assert path in Astro.Kernel.loaded()
+    assert path in loaded_kernels()
 
     assert :ok = Astro.Kernel.unload(path)
     assert {:error, _reason} = Astro.Support.bodvcd(100_002, "RUNTIME")
-    refute path in Astro.Kernel.loaded()
+    refute path in loaded_kernels()
   end
 
   test "concurrent native furnishes of one path remain idempotent" do
@@ -36,24 +36,24 @@ defmodule Astro.KernelTest do
     assert Enum.all?(results, &match?({:ok, :ok}, &1))
     assert :ok = Astro.Kernel.unload(path)
     assert {:error, _reason} = Astro.Support.bodvcd(100_002, "RUNTIME")
-    refute path in Astro.Kernel.loaded()
+    refute path in loaded_kernels()
   end
 
   test "rejects a missing kernel without changing loaded kernels" do
-    loaded = Astro.Kernel.loaded()
+    loaded = loaded_kernels()
     path = Path.expand("test/fixtures/kernels/ex_astro_test_missing.tpc")
 
     assert {:error, "kernel file not found: " <> ^path} = Astro.Kernel.load(path)
-    assert Astro.Kernel.loaded() == loaded
+    assert loaded_kernels() == loaded
   end
 
   test "restores loaded kernels after a partially failed meta-kernel load" do
-    loaded = Astro.Kernel.loaded()
+    loaded = loaded_kernels()
     path = Path.expand(@partial_kernel)
     on_exit(fn -> Astro.Kernel.unload(path) end)
 
     assert {:error, _reason} = Astro.Kernel.load(path)
-    assert Astro.Kernel.loaded() == loaded
+    assert loaded_kernels() == loaded
     assert {:error, _reason} = Astro.Support.bodvcd(100_002, "RUNTIME")
   end
 
@@ -73,7 +73,7 @@ defmodule Astro.KernelTest do
 
     assert :ok = Astro.Kernel.load(meta)
     assert {:ok, [43.0]} = Astro.Support.bodvcd(100_003, "RELOAD")
-    assert meta in Astro.Kernel.loaded()
+    assert meta in loaded_kernels()
   end
 
   test "a transitive child can also be furnished directly" do
@@ -98,7 +98,12 @@ defmodule Astro.KernelTest do
   test "loads configured kernels when the application starts" do
     path = Path.expand("test/fixtures/kernels/ex_astro_test_many_values.tpc")
 
-    assert path in Astro.Kernel.loaded()
+    assert path in loaded_kernels()
+  end
+
+  defp loaded_kernels do
+    assert {:ok, paths} = Astro.Kernel.loaded()
+    paths
   end
 
   defp unload_repeatedly(path, count) do

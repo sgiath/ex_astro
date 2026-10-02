@@ -74,7 +74,7 @@ Kernels downloaded after startup can be managed at runtime:
 
 ```elixir
 :ok = Astro.Kernel.load("/path/to/kernel.bsp")
-Astro.Kernel.loaded()
+{:ok, paths} = Astro.Kernel.loaded()
 :ok = Astro.Kernel.unload("/path/to/kernel.bsp")
 ```
 

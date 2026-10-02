@@ -140,7 +140,7 @@ end
 
 Orbits.Kernels.ensure_all()
 Enum.each(Orbits.Kernels.paths(), &(:ok = Astro.Kernel.load(&1)))
-Astro.Kernel.loaded()
+{:ok, _paths} = Astro.Kernel.loaded()
 ```
 
 ## From a wall clock to ephemeris time

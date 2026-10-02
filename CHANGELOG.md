@@ -15,6 +15,8 @@
 - **breaking:** `Astro.Time.str2et/1`, `utc2et/1`, and `unitim/3` return
   `{:ok, value}`; they already returned `{:error, message}` on SPICE failures
   despite specs promising a bare float
+- **breaking:** `Astro.Kernel.loaded/0` returns `{:ok, paths}` or
+  `{:error, message}` like the other kernel operations instead of raising
 
 ## v0.3.0 (2026-08-15)
 

@@ -69,18 +69,12 @@ defmodule Astro.Kernel do
   Return the kernels currently loaded in the CSPICE kernel pool.
 
   Directly loaded paths are expanded absolute paths. Meta-kernel children are
-  returned exactly as CSPICE stored them and may be relative.
+  returned exactly as CSPICE stored them and may be relative. Returns
+  `{:error, message}` if SPICE cannot read the pool, like the other kernel
+  operations.
   """
-  @spec loaded() :: [String.t()]
-  def loaded do
-    case Astro.NIF.kernel_list() do
-      {:ok, list} ->
-        list
-
-      {:error, reason} ->
-        raise RuntimeError, "failed to list kernels: #{reason}"
-    end
-  end
+  @spec loaded() :: {:ok, [String.t()]} | {:error, String.t()}
+  def loaded, do: Astro.NIF.kernel_list()
 
   defp validate_path_size(path) do
     if byte_size(path) <= @max_path_bytes do
