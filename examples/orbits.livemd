@@ -309,9 +309,16 @@ with this equation. `Astro.Orbit.eccentric_anomaly/2` uses Newton's method,
 
 $$E_{k+1} = E_k + \frac{M - (E_k - e\sin E_k)}{1 - e\cos E_k}$$
 
-starting from $E_0 = M + e\sin M$ and iterating to $10^{-13}$ rad - for
-planetary eccentricities that converges in a handful of steps. The last hop
-to the physical angle is closed-form, `true_anomaly/2`:
+starting from $E_0 = M + e\sin M$. Since $E - M = e\sin E$, the root always
+lies in $[M - e,\ M + e]$, and $E - e\sin E - M$ increases monotonically, so
+the solver keeps that bracket, shrinks it with the sign of each residual, and
+falls back to a bisection step whenever a Newton step would leave it. That
+safeguard keeps it convergent for every $e \in [0, 1)$, including
+near-parabolic orbits where plain Newton can overshoot. It stops once a step
+falls below $10^{-15}$ relative to $\max(1, |E_k|)$ - double precision - and
+gives up after 100 iterations; for planetary eccentricities it converges in
+a handful of steps. The last hop to the physical angle is closed-form,
+`true_anomaly/2`:
 
 $$\tan\frac{\nu}{2} = \sqrt{\frac{1+e}{1-e}}\,\tan\frac{E}{2}$$
 
