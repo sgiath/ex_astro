@@ -68,6 +68,40 @@ defmodule Astro.OrbitTest do
     assert_raise ArgumentError, fn -> Astro.Orbit.period(orbit) end
   end
 
+  test "apoapsis and semi-major axis follow conic geometry" do
+    orbit = Astro.Orbit.from_elements(@elements)
+
+    assert_in_delta Astro.Orbit.apoapsis(orbit), 7_000.0 * 1.01 / 0.99, 1.0e-9
+    assert_in_delta Astro.Orbit.semi_major_axis(%{orbit | ecc: 1.5}), -14_000.0, 1.0e-9
+    assert_raise ArgumentError, fn -> Astro.Orbit.semi_major_axis(%{orbit | ecc: 1.0}) end
+  end
+
+  test "true anomaly follows the half-angle relation" do
+    assert_in_delta Astro.Orbit.true_anomaly(0.0, 0.5), 0.0, 1.0e-15
+    assert_in_delta Astro.Orbit.true_anomaly(:math.pi() / 2.0, 0.5), 2.0 * :math.pi() / 3.0, 1.0e-12
+    assert_in_delta Astro.Orbit.true_anomaly(-:math.pi() / 2.0, 0.5), -2.0 * :math.pi() / 3.0, 1.0e-12
+    assert_raise ArgumentError, fn -> Astro.Orbit.true_anomaly(1.0, 1.0) end
+  end
+
+  test "anomalies at an epoch agree with the propagated SPICE state" do
+    orbit = Astro.Orbit.from_elements([7_000.0, 0.3, 0.1, 0.2, 0.3, 0.4, 0.0, @mu])
+    period = Astro.Orbit.period(orbit)
+
+    assert_in_delta Astro.Orbit.mean_anomaly_at(orbit, period), 0.4, 1.0e-9
+    assert_in_delta Astro.Orbit.mean_anomaly_at(orbit, period / 2.0), 0.4 - :math.pi(), 1.0e-9
+
+    for et <- [0.0, 1_000.0, period / 3.0, 0.9 * period] do
+      {:ok, state} = Astro.Orbit.state_at(orbit, et)
+      {u, v, _w} = Astro.Orbit.perifocal_basis(orbit)
+      position = state |> Enum.take(3) |> List.to_tuple()
+      expected_true_anomaly = :math.atan2(dot(position, v), dot(position, u))
+
+      eccentric_anomaly = Astro.Orbit.eccentric_anomaly_at(orbit, et)
+      assert eccentric_anomaly == Astro.Orbit.eccentric_anomaly(Astro.Orbit.mean_anomaly_at(orbit, et), 0.3)
+      assert_in_delta Astro.Orbit.true_anomaly_at(orbit, et), expected_true_anomaly, 1.0e-9
+    end
+  end
+
   test "perifocal basis vectors are orthonormal" do
     orbit = Astro.Orbit.from_elements(@elements)
     {u, v, w} = Astro.Orbit.perifocal_basis(orbit)

@@ -68,6 +68,21 @@ defmodule Astro.TimeTest do
     assert_in_delta roundtrip_tai, Astro.Time.jd_to_float(tai), 1.0e-12
   end
 
+  test "TCG and TCB conversions match the ERFA reference values" do
+    # ERFA t_erfa_c.c: t_tttcg, t_tcgtt, t_tdbtcb, t_tcbtdb
+    assert {2_453_750.5, tcg2} = Astro.Time.tt2tcg({2_453_750.5, 0.892482639})
+    assert_in_delta tcg2, 0.8924900312508587113, 1.0e-12
+
+    assert {2_453_750.5, tt2} = Astro.Time.tcg2tt({2_453_750.5, 0.892862531})
+    assert_in_delta tt2, 0.8928551387488816828, 1.0e-12
+
+    assert {2_453_750.5, tcb2} = Astro.Time.tdb2tcb({2_453_750.5, 0.892855137})
+    assert_in_delta tcb2, 0.8930195997253656716, 1.0e-12
+
+    assert {2_453_750.5, tdb2} = Astro.Time.tcb2tdb({2_453_750.5, 0.893019599})
+    assert_in_delta tdb2, 0.8928551362746343397, 1.0e-12
+  end
+
   test "et and day second helpers are consistent" do
     assert Astro.Time.str2et("2000 JAN 01 12:00:00 TDB") == {:ok, 0.0}
     assert {:ok, et} = Astro.Time.utc2et("2000-01-01T12:00:00")

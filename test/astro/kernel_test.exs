@@ -146,6 +146,15 @@ defmodule Astro.KernelTest do
     assert path in loaded_kernels()
   end
 
+  test "clear unloads every kernel" do
+    previously_loaded = loaded_kernels()
+    on_exit(fn -> Enum.each(previously_loaded, &(:ok = Astro.Kernel.load(&1))) end)
+
+    assert :ok = Astro.Kernel.clear()
+    assert loaded_kernels() == []
+    assert {:error, _reason} = Astro.Support.bodvcd(399, "GM")
+  end
+
   defp loaded_kernels do
     assert {:ok, paths} = Astro.Kernel.loaded()
     paths
