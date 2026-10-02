@@ -51,7 +51,8 @@ It is a bit more complicated then normal lib so pay attention:
   end
 ```
 
-- download SPICE kernels; applications load configured paths when they start
+- download SPICE kernels into your application's `priv/kernels/`; applications load configured
+  paths when they start
 
 ```bash
 mix astro.kernels
@@ -59,15 +60,19 @@ mix astro.kernels
 
 ## Kernels
 
-Configure kernels that should load when the application starts:
+Configure kernels that should load when the application starts. Resolve them with
+`Application.app_dir/2` in `config/runtime.exs` (replace `:my_app` with your application) so the
+paths do not depend on the working directory of a release:
 
 ```elixir
 config :ex_astro,
-  spice_kernels: [
-    "priv/kernels/lsk/naif0012.tls",
-    "priv/kernels/pck/pck00011.tpc",
-    "priv/kernels/spk/planets/de440.bsp"
-  ]
+  spice_kernels:
+    for path <- [
+          "priv/kernels/lsk/naif0012.tls",
+          "priv/kernels/pck/pck00011.tpc",
+          "priv/kernels/spk/planets/de440.bsp"
+        ],
+        do: Application.app_dir(:my_app, path)
 ```
 
 Kernels downloaded after startup can be managed at runtime:

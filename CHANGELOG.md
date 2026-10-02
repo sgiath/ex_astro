@@ -29,6 +29,9 @@
 - stream kernel downloads to disk instead of buffering each body in memory
 - download the 15 kernels NAIF moved to `a_old_versions/` from their new
   location; every URL in `mix astro.kernels` returned 404 for them
+- `mix astro.kernels` prints a `config/runtime.exs` snippet that resolves
+  kernels with `Application.app_dir/2` instead of working-directory-relative
+  paths, so configured kernels also load from releases
 
 ## v0.3.0 (2026-08-15)
 

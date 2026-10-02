@@ -2,7 +2,13 @@ defmodule Mix.Tasks.Astro.Kernels do
   @shortdoc "Downloads kernels for SPICE framework"
 
   @moduledoc """
-  Download some general SPICE kernels to the priv/kernels/ directory
+  Download some general SPICE kernels to `priv/kernels/` of the current
+  project.
+
+  Run it from the root of the application that should ship the kernels. The
+  task prints a `config/runtime.exs` snippet that resolves the files with
+  `Application.app_dir/2`, so the paths keep working in releases regardless
+  of the working directory.
 
   If you want to download more kernels manually look here:
   https://naif.jpl.nasa.gov/pub/naif/generic_kernels/
@@ -105,15 +111,19 @@ defmodule Mix.Tasks.Astro.Kernels do
       """)
     end
 
+    app = Mix.Project.config()[:app]
+
     IO.puts("""
 
 
-    #{IO.ANSI.green_background()}All kernels downloaded, now you can put this in your config.exs:#{IO.ANSI.reset()}
+    #{IO.ANSI.green_background()}All kernels downloaded into the priv/ directory of #{inspect(app)}. Load them by adding this to config/runtime.exs:#{IO.ANSI.reset()}
 
     config :ex_astro,
-      spice_kernels: [
-    #{Enum.map_join(@kernels, ",\n", &"    \"priv/kernels#{&1}\"")}
-      ]
+      spice_kernels:
+        for path <- [
+    #{Enum.map_join(@kernels, ",\n", &"          \"priv/kernels#{&1}\"")}
+            ],
+            do: Application.app_dir(#{inspect(app)}, path)
     """)
   end
 
