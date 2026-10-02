@@ -22,6 +22,10 @@
 - decode fixed-length vector arguments cell by cell instead of measuring the
   whole list first, so oversized lists passed to normal-scheduler NIFs such as
   `Astro.Star.pvstar/1` are rejected without scanning them
+- `mix astro.kernels` rejects non-200 responses and file errors, writes each
+  kernel to a `.part` file renamed on success, and exits non-zero listing the
+  failed downloads; previously error pages were saved as kernels and skipped
+  forever after
 
 ## v0.3.0 (2026-08-15)
 

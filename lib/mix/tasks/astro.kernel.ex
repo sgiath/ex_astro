@@ -72,18 +72,20 @@ defmodule Mix.Tasks.Astro.Kernels do
 
   @impl Mix.Task
   def run(_args) do
-    Enum.each(@kernels, fn path ->
-      directory = Path.dirname("priv/kernels#{path}")
-      File.mkdir_p(directory)
+    failures =
+      Enum.flat_map(@kernels, fn path ->
+        case fetch(path) do
+          :ok -> []
+          {:error, reason} -> [{path, reason}]
+        end
+      end)
 
-      if File.exists?("priv/kernels#{path}") do
-        IO.puts("File #{path} exists. Skipping")
-      else
-        IO.puts("\nDownloading #{path} ...")
-        File.write("priv/kernels#{path}", Req.request!(url: @base_url <> path).body)
-        IO.puts("File #{path} downloaded\n")
-      end
-    end)
+    if failures != [] do
+      Mix.raise("""
+      Failed to download #{length(failures)} kernel(s); rerun the task to retry:
+      #{Enum.map_join(failures, "\n", fn {path, reason} -> "  #{path}: #{reason}" end)}
+      """)
+    end
 
     IO.puts("""
 
@@ -96,4 +98,42 @@ defmodule Mix.Tasks.Astro.Kernels do
       ]
     """)
   end
+
+  defp fetch(path) do
+    destination = "priv/kernels#{path}"
+
+    if File.exists?(destination) do
+      IO.puts("File #{path} exists. Skipping")
+    else
+      IO.puts("Downloading #{path} ...")
+      download(@base_url <> path, destination)
+    end
+  end
+
+  # Write next to the destination and rename only after a complete HTTP 200
+  # response, so a failed or interrupted download never leaves a file that a
+  # later run would skip as already present.
+  defp download(url, destination) do
+    partial = destination <> ".part"
+
+    result =
+      with :ok <- File.mkdir_p(Path.dirname(destination)),
+           {:ok, %Req.Response{status: 200, body: body}} <- Req.get(url, decode_body: false),
+           :ok <- File.write(partial, body) do
+        File.rename(partial, destination)
+      end
+
+    case result do
+      :ok ->
+        :ok
+
+      failure ->
+        File.rm(partial)
+        {:error, failure_reason(failure)}
+    end
+  end
+
+  defp failure_reason({:ok, %Req.Response{status: status}}), do: "HTTP #{status}"
+  defp failure_reason({:error, exception}) when is_exception(exception), do: Exception.message(exception)
+  defp failure_reason({:error, posix}), do: List.to_string(:file.format_error(posix))
 end
