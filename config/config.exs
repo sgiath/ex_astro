@@ -64,5 +64,23 @@ config :ex_astro,
     "priv/kernels/pck/mars_iau2000_v1.tpc",
     "priv/kernels/pck/gm_de440.tpc",
     "priv/kernels/pck/moon_pa_de440_200625.bpc",
-    "priv/kernels/pck/earth_latest_high_prec.bpc"
+    "priv/kernels/pck/earth_latest_high_prec.bpc",
+
+    # Frame Kernels
+    # MOON_PA/MOON_ME frames for moon_pa_de440_200625.bpc
+    "priv/kernels/fk/satellites/moon_de440_250416.tf",
+
+    # names for satellite and asteroid IDs not built into CSPICE N0067
+    "priv/kernels/fk/satellites/jup347_nameid.tf",
+    "priv/kernels/fk/satellites/jup348_nameid.tf",
+    "priv/kernels/fk/satellites/jup349_nameid.tf",
+    "priv/kernels/fk/satellites/sat455_nameid.tf",
+    "priv/kernels/fk/satellites/sat456_nameid.tf",
+    "priv/kernels/fk/satellites/sat457_nameid.tf",
+    "priv/kernels/fk/satellites/sat459_nameid.tf",
+    "priv/kernels/fk/satellites/sat480_nameid.tf",
+    "priv/kernels/fk/satellites/ura117_nameid.tf",
+    "priv/kernels/fk/satellites/nep098_nameid.tf",
+    "priv/kernels/fk/satellites/nep104_nameid.tf",
+    "priv/kernels/spk/asteroids/codes_300ast_20100725.tf"
   ]

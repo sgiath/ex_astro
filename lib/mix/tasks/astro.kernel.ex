@@ -93,7 +93,25 @@ defmodule Mix.Tasks.Astro.Kernels do
     "/pck/mars_iau2000_v1.tpc",
     "/pck/gm_de440.tpc",
     "/pck/moon_pa_de440_200625.bpc",
-    "/pck/earth_latest_high_prec.bpc"
+    "/pck/earth_latest_high_prec.bpc",
+
+    # Frame Kernels
+    # MOON_PA/MOON_ME frames for moon_pa_de440_200625.bpc
+    "/fk/satellites/moon_de440_250416.tf",
+
+    # names for satellite and asteroid IDs not built into CSPICE N0067
+    "/fk/satellites/jup347_nameid.tf",
+    "/fk/satellites/jup348_nameid.tf",
+    "/fk/satellites/jup349_nameid.tf",
+    "/fk/satellites/sat455_nameid.tf",
+    "/fk/satellites/sat456_nameid.tf",
+    "/fk/satellites/sat457_nameid.tf",
+    "/fk/satellites/sat459_nameid.tf",
+    "/fk/satellites/sat480_nameid.tf",
+    "/fk/satellites/ura117_nameid.tf",
+    "/fk/satellites/nep098_nameid.tf",
+    "/fk/satellites/nep104_nameid.tf",
+    "/spk/asteroids/codes_300ast_20100725.tf"
   ]
 
   @impl Mix.Task

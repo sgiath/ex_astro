@@ -36,6 +36,13 @@
   `plu060` replaces `plu058`. Every previously covered body is still covered,
   plus moons discovered since; the full download grows to about 15 GB. Update
   configured paths and rerun the task; old files are no longer loaded
+- `mix astro.kernels` and the dev config add the lunar frame kernel
+  `moon_de440_250416.tf`, without which the `MOON_PA`/`MOON_ME` frames of
+  `moon_pa_de440_200625.bpc` are unknown, and NAIF's `*_nameid.tf` and
+  `codes_300ast_20100725.tf` kernels, so satellites and asteroids whose names
+  are not built into CSPICE N0067 resolve by name. With the asteroid kernel
+  loaded, `Astro.Support.bodc2n/1` returns its names (`"1 CERES"`); built-in
+  names such as `"CERES"` still resolve with `bodn2c/1`
 - `mix astro.kernels` prints a `config/runtime.exs` snippet that resolves
   kernels with `Application.app_dir/2` instead of working-directory-relative
   paths, so configured kernels also load from releases
