@@ -8,7 +8,7 @@ ex_astro =
     {:ex_astro, "~> 0.3"}
   end
 
-Mix.install([ex_astro, {:kino, "~> 0.16"}])
+Mix.install([ex_astro, {:kino, "~> 0.16"}, {:req, "~> 0.7"}])
 ```
 
 ## Section
