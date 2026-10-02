@@ -57,6 +57,51 @@ defmodule Astro.KernelTest do
     assert {:error, _reason} = Astro.Support.bodvcd(100_002, "RUNTIME")
   end
 
+  test "kernel mutations are atomic for concurrent readers" do
+    runtime = Path.expand(@runtime_kernel)
+    partial = Path.expand(@partial_kernel)
+    on_exit(fn -> unload_repeatedly(runtime, 64) end)
+
+    {:ok, earth_gm} = Astro.Support.bodvcd(399, "GM")
+    {:ok, earth_state, _lt} = Astro.Ephemeris.spkezr("EARTH", 0.0, "J2000", "NONE", "SUN")
+
+    jobs =
+      List.duplicate(:failed_meta_kernel_load, 40) ++
+        List.duplicate(:load_unrelated_kernel, 20) ++
+        List.duplicate(:unload_unrelated_kernel, 20) ++
+        List.duplicate(:read, 200)
+
+    results =
+      jobs
+      |> Enum.shuffle()
+      |> Task.async_stream(&run_job(&1, runtime, partial),
+        max_concurrency: 2 * System.schedulers_online(),
+        ordered: false,
+        timeout: 30_000
+      )
+      |> Enum.map(fn {:ok, result} -> result end)
+
+    for result <- results do
+      case result do
+        {:failed_meta_kernel_load, outcome} ->
+          assert {:error, _reason} = outcome
+
+        {:read, gm, state} ->
+          assert gm == {:ok, earth_gm}
+          assert {:ok, ^earth_state, _lt} = state
+
+        {_mutation, outcome} ->
+          assert outcome == :ok
+      end
+    end
+
+    # Every failed meta-kernel load rolled back, so once the unrelated runtime
+    # kernel is unloaded nothing defines its variable.
+    unload_repeatedly(runtime, 64)
+    assert {:error, _reason} = Astro.Support.bodvcd(100_002, "RUNTIME")
+    refute partial in loaded_kernels()
+  end
+
   test "reloading a direct meta-kernel is idempotent" do
     {directory, child, meta} = setup_meta_kernel()
 
@@ -104,6 +149,14 @@ defmodule Astro.KernelTest do
   defp loaded_kernels do
     assert {:ok, paths} = Astro.Kernel.loaded()
     paths
+  end
+
+  defp run_job(:failed_meta_kernel_load, _runtime, partial), do: {:failed_meta_kernel_load, Astro.Kernel.load(partial)}
+  defp run_job(:load_unrelated_kernel, runtime, _partial), do: {:load_unrelated_kernel, Astro.Kernel.load(runtime)}
+  defp run_job(:unload_unrelated_kernel, runtime, _partial), do: {:unload_unrelated_kernel, Astro.Kernel.unload(runtime)}
+
+  defp run_job(:read, _runtime, _partial) do
+    {:read, Astro.Support.bodvcd(399, "GM"), Astro.Ephemeris.spkezr("EARTH", 0.0, "J2000", "NONE", "SUN")}
   end
 
   defp unload_repeatedly(path, count) do
