@@ -14,7 +14,14 @@
 #include <erfa.h>
 #include "SpiceUsr.h"
 
-#define CSPICE_ERROR_LENGTH 1841
+/*
+ * getmsg_c buffer sizes including the terminator: SHORT messages are at most
+ * 25 characters and LONG messages at most 1840. Errors are reported as
+ * "SHORT -- LONG" so callers can match on the stable short code.
+ */
+#define CSPICE_SHORT_ERROR_LENGTH 26
+#define CSPICE_LONG_ERROR_LENGTH 1841
+#define CSPICE_ERROR_LENGTH (CSPICE_SHORT_ERROR_LENGTH + 4 + CSPICE_LONG_ERROR_LENGTH)
 
 typedef enum
 {

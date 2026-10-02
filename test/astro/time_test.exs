@@ -78,6 +78,11 @@ defmodule Astro.TimeTest do
     assert Astro.Time.sec2day(21_600.0) == julian_date
   end
 
+  test "SPICE failures report the short error code with the long message" do
+    assert {:error, "SPICE(" <> _ = message} = Astro.Time.str2et("not a parseable spice time")
+    assert message =~ ~r/^SPICE\(\w+\) -- \S/
+  end
+
   test "datetime and ephemeris time helpers agree with SPICE and round trip" do
     assert_in_delta(
       Astro.Time.to_et(~U[2000-01-01 12:00:00Z]),

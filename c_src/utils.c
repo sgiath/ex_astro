@@ -153,9 +153,14 @@ exa_cspice_sync_error(ErlNifEnv *env)
 static void
 read_cspice_error(char *error_msg)
 {
-  getmsg_c("LONG", CSPICE_ERROR_LENGTH - 1, error_msg);
-  error_msg[CSPICE_ERROR_LENGTH - 1] = '\0';
+  SpiceChar short_msg[CSPICE_SHORT_ERROR_LENGTH];
+  SpiceChar long_msg[CSPICE_LONG_ERROR_LENGTH];
+
+  getmsg_c("SHORT", sizeof(short_msg), short_msg);
+  getmsg_c("LONG", sizeof(long_msg), long_msg);
   reset_c();
+
+  snprintf(error_msg, CSPICE_ERROR_LENGTH, "%s -- %s", short_msg, long_msg);
 }
 
 bool

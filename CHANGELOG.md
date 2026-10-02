@@ -10,6 +10,8 @@
   to the day fraction ERFA expects; the seconds were previously passed as days
 - convert `DateTime` values by their UTC instant in `to_julian_date/1` and
   `to_et/1`; non-UTC offsets were previously ignored
+- prefix SPICE error messages with their short code (`SPICE(...) -- ...`);
+  `Astro.Support.spkobj/1` now grows past 1024 IDs as documented
 
 ## v0.3.0 (2026-08-15)
 
