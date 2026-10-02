@@ -1,6 +1,7 @@
 #include "utils.h"
 #include "nifs.h"
 #include <erfam.h>
+#include <math.h>
 
 static bool
 erfa_status_ok(int status)
@@ -415,7 +416,7 @@ exa_nif_sec2day(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 ERL_NIF_TERM
 exa_nif_day2sec(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
-  double jd1, jd2;
+  double jd1, jd2, big, small;
   double j2000;
   double spd;
   SpiceChar error[CSPICE_ERROR_LENGTH];
@@ -437,5 +438,18 @@ exa_nif_day2sec(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
   }
 
   exa_cspice_unlock();
-  return enif_make_double(env, ((jd1 - j2000) + jd2) * spd);
+
+  /* Subtract J2000 from the larger part so the smaller one keeps its precision. */
+  if (fabs(jd1) >= fabs(jd2))
+  {
+    big = jd1;
+    small = jd2;
+  }
+  else
+  {
+    big = jd2;
+    small = jd1;
+  }
+
+  return enif_make_double(env, ((big - j2000) + small) * spd);
 }

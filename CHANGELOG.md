@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- subtract J2000 from the larger part of the Julian date in
+  `Astro.Time.day2sec/1`; small-first splits such as `{1.0e-9, 2451545.0}`
+  previously lost the small part's precision
 - decode UTC Julian Dates on leap-second days with their real day length;
   `jd2dt/1` returns second `60` and `to_datetime/1` raises for it
 - replace the unguarded Kepler Newton iteration with a bisection-safeguarded

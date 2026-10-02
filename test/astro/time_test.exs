@@ -94,6 +94,11 @@ defmodule Astro.TimeTest do
     assert Astro.Time.sec2day(21_600.0) == julian_date
   end
 
+  test "day2sec keeps precision when the Julian date split is small-first" do
+    assert_in_delta Astro.Time.day2sec({1.0e-9, 2_451_545.0}), 8.64e-5, 1.0e-12
+    assert Astro.Time.day2sec({0.25, 2_451_545.0}) == 21_600.0
+  end
+
   test "SPICE failures report the short error code with the long message" do
     assert {:error, "SPICE(" <> _ = message} = Astro.Time.str2et("not a parseable spice time")
     assert message =~ ~r/^SPICE\(\w+\) -- \S/
