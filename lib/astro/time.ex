@@ -49,6 +49,11 @@ defmodule Astro.Time do
     more than about five years after the installed ERFA release, future leap
     seconds are unknown and the last tabulated offset is used. Results in
     either range are not reliable at the leap-second level.
+  - ERFA rejections raise `ArgumentError` whose message names the cause:
+    `dtf2d/6` reports the out-of-range year, month, day, hour, minute, or
+    second (including a second past the end of the day), and `jd2dt/1`,
+    `utc2tai/1`, and `tai2utc/1` report a Julian Date outside ERFA's calendar
+    range.
 
   ## Example
 

@@ -163,25 +163,23 @@ defmodule Astro.TimeTest do
     end
   end
 
-  test "time functions reject invalid ERFA date values" do
-    assert_raise ArgumentError, fn ->
-      Astro.Time.dtf2d(2000, 13, 1, 12, 0, 0.0)
+  test "invalid ERFA calendar values raise ArgumentError naming the field" do
+    for {args, field} <- [
+          {[-5000, 1, 1, 12, 0, 0.0], ~r/year -5000/},
+          {[2000, 13, 1, 12, 0, 0.0], ~r/month 13/},
+          {[2001, 2, 29, 12, 0, 0.0], ~r/day 29/},
+          {[2000, 1, 1, 24, 0, 0.0], ~r/hour 24/},
+          {[2000, 1, 1, 12, 60, 0.0], ~r/minute 60/},
+          {[2000, 1, 1, 12, 0, -1.5], ~r/second -1\.5/},
+          {[2000, 1, 1, 23, 59, 60.5], ~r/second 60\.5/}
+        ] do
+      assert_raise ArgumentError, field, fn -> apply(Astro.Time, :dtf2d, args) end
     end
 
-    assert_raise ArgumentError, fn ->
-      Astro.Time.dtf2d(2000, 1, 1, 12, 0, -1.0)
-    end
-
-    assert_raise ArgumentError, fn ->
-      Astro.Time.jd2dt({1.0e12, 0.0})
-    end
-
-    assert_raise ArgumentError, fn ->
-      Astro.Time.utc2tai({1.0e12, 0.0})
-    end
-
-    assert_raise ArgumentError, fn ->
-      Astro.Time.tai2utc({1.0e12, 0.0})
+    for fun <- [:jd2dt, :utc2tai, :tai2utc] do
+      assert_raise ArgumentError, ~r/Julian Date .*1000000000000/, fn ->
+        apply(Astro.Time, fun, [{1.0e12, 0.0}])
+      end
     end
   end
 
