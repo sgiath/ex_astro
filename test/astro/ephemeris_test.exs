@@ -4,8 +4,8 @@ defmodule Astro.EphemerisTest do
   doctest Astro.Ephemeris
 
   # Reference values from JPL Horizons (DE441) for 2025-Nov-21 00:00:00 TDB
-  # (JD 2461000.5), ICRF axes, km and km/s. The library loads DE440, which
-  # agrees with DE441 to well under a kilometer for these bodies.
+  # (JD 2461000.5), ICRF axes, km and km/s. The library loads DE442, whose
+  # heliocentric Earth differs from DE441 here by 15 m and 2.5e-9 km/s.
   @et (2_461_000.5 - 2_451_545.0) * 86_400.0
 
   # Horizons VECTORS, COMMAND=399, CENTER=500@10, VEC_CORR=NONE
@@ -48,17 +48,17 @@ defmodule Astro.EphemerisTest do
   test "spkezr geometric state matches JPL Horizons" do
     assert {:ok, state, light_time} = Astro.Ephemeris.spkezr("EARTH", @et, "J2000", "NONE", "SUN")
 
-    assert_state(state, @earth_from_sun, 1.0e-3, 1.0e-9)
-    assert_in_delta light_time, @earth_from_sun_lt, 1.0e-9
+    assert_state(state, @earth_from_sun, 5.0e-2, 1.0e-8)
+    assert_in_delta light_time, @earth_from_sun_lt, 1.0e-8
   end
 
   test "spkez and spkgeo agree with Horizons for integer body IDs" do
     assert {:ok, state, _light_time} = Astro.Ephemeris.spkez(399, @et, "J2000", "NONE", 10)
-    assert_state(state, @earth_from_sun, 1.0e-3, 1.0e-9)
+    assert_state(state, @earth_from_sun, 5.0e-2, 1.0e-8)
 
     assert {:ok, state, light_time} = Astro.Ephemeris.spkgeo(399, @et, "J2000", 10)
-    assert_state(state, @earth_from_sun, 1.0e-3, 1.0e-9)
-    assert_in_delta light_time, @earth_from_sun_lt, 1.0e-9
+    assert_state(state, @earth_from_sun, 5.0e-2, 1.0e-8)
+    assert_in_delta light_time, @earth_from_sun_lt, 1.0e-8
   end
 
   test "light-time and stellar-aberration corrections match Horizons" do

@@ -27,8 +27,15 @@
   failed downloads; previously error pages were saved as kernels and skipped
   forever after
 - stream kernel downloads to disk instead of buffering each body in memory
-- download the 15 kernels NAIF moved to `a_old_versions/` from their new
-  location; every URL in `mix astro.kernels` returned 404 for them
+- **breaking:** `mix astro.kernels` and the dev config use current NAIF
+  kernels instead of superseded ones: `de442.bsp` replaces `de440.bsp`,
+  `L*_de441.bsp` replace `L*_de431.bsp`, `mar099.bsp` replaces `mar097.bsp`,
+  `jup347`–`jup349` replace `jup344`/`jup346`, `sat455`–`sat480` replace
+  `sat452`/`sat453`, `ura184_part-1`–`3` replace `ura111`/`ura115`/`ura116`,
+  `nep098_part-1`–`3`, `nep104` and `nep105` replace `nep095`/`nep102`, and
+  `plu060` replaces `plu058`. Every previously covered body is still covered,
+  plus moons discovered since; the full download grows to about 15 GB. Update
+  configured paths and rerun the task; old files are no longer loaded
 - `mix astro.kernels` prints a `config/runtime.exs` snippet that resolves
   kernels with `Application.app_dir/2` instead of working-directory-relative
   paths, so configured kernels also load from releases

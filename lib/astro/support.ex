@@ -123,7 +123,7 @@ defmodule Astro.Support do
 
   ## Example
 
-      iex> {:ok, ids} = Astro.Support.spkobj("priv/kernels/spk/planets/de440.bsp")
+      iex> {:ok, ids} = Astro.Support.spkobj("priv/kernels/spk/planets/de442.bsp")
       iex> is_list(ids)
       true
 

@@ -1,7 +1,7 @@
 defmodule Astro.NativeStringBoundaryTest do
   use ExUnit.Case, async: true
 
-  @spk_file "priv/kernels/spk/planets/de440.bsp"
+  @spk_file "priv/kernels/spk/planets/de442.bsp"
 
   describe "embedded NUL rejection" do
     test "rejects NULs before CSPICE can observe truncated strings" do

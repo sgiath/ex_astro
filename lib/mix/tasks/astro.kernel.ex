@@ -3,7 +3,7 @@ defmodule Mix.Tasks.Astro.Kernels do
 
   @moduledoc """
   Download some general SPICE kernels to `priv/kernels/` of the current
-  project.
+  project. The full set is about 15 GB, most of it satellite ephemerides.
 
   Run it from the root of the application that should ship the kernels. The
   task prints a `config/runtime.exs` snippet that resolves the files with
@@ -28,6 +28,11 @@ defmodule Mix.Tasks.Astro.Kernels do
 
   @base_url "https://naif.jpl.nasa.gov/pub/naif/generic_kernels"
 
+  # SPICE gives the most recently loaded kernel priority where coverage
+  # overlaps, so this list is ordered for loading: within a planetary system
+  # the long-span older solutions come first and the newest solution last, and
+  # the planetary ephemeris follows every satellite SPK so its Sun, Earth and
+  # barycenter data win over the copies merged into the satellite files.
   @kernels [
     # comets
     "/spk/comets/c2013a1_s105_merged.bsp",
@@ -36,41 +41,48 @@ defmodule Mix.Tasks.Astro.Kernels do
     "/spk/asteroids/codes_300ast_20100725.bsp",
 
     # lagrange points
-    "/spk/lagrange_point/L1_de431.bsp",
-    "/spk/lagrange_point/L2_de431.bsp",
-    "/spk/lagrange_point/L4_de431.bsp",
-    "/spk/lagrange_point/L5_de431.bsp",
+    "/spk/lagrange_point/L1_de441.bsp",
+    "/spk/lagrange_point/L2_de441.bsp",
+    "/spk/lagrange_point/L4_de441.bsp",
+    "/spk/lagrange_point/L5_de441.bsp",
 
     # Mars satellites
-    "/spk/satellites/mar097.bsp",
+    "/spk/satellites/mar099.bsp",
 
     # Jupiter satellites
-    "/spk/satellites/jup344.bsp",
-    "/spk/satellites/jup346.bsp",
+    "/spk/satellites/jup347.bsp",
+    "/spk/satellites/jup348.bsp",
+    "/spk/satellites/jup349.bsp",
     "/spk/satellites/jup365.bsp",
 
     # Saturn satellites
     "/spk/satellites/sat393_daphnis.bsp",
     "/spk/satellites/sat415.bsp",
     "/spk/satellites/sat441.bsp",
-    "/spk/satellites/sat452.bsp",
-    "/spk/satellites/sat453.bsp",
+    "/spk/satellites/sat455.bsp",
+    "/spk/satellites/sat456.bsp",
+    "/spk/satellites/sat457.bsp",
+    "/spk/satellites/sat459.bsp",
+    "/spk/satellites/sat480.bsp",
 
     # Uranus satellites
-    "/spk/satellites/ura111.bsp",
-    "/spk/satellites/ura115.bsp",
-    "/spk/satellites/ura116.bsp",
+    "/spk/satellites/ura184_part-1.bsp",
+    "/spk/satellites/ura184_part-2.bsp",
+    "/spk/satellites/ura184_part-3.bsp",
 
     # Neptune satellites
-    "/spk/satellites/nep095.bsp",
     "/spk/satellites/nep097.bsp",
-    "/spk/satellites/nep102.bsp",
+    "/spk/satellites/nep105.bsp",
+    "/spk/satellites/nep104.bsp",
+    "/spk/satellites/nep098_part-1.bsp",
+    "/spk/satellites/nep098_part-2.bsp",
+    "/spk/satellites/nep098_part-3.bsp",
 
     # Pluto satellites
-    "/spk/satellites/plu058.bsp",
+    "/spk/satellites/plu060.bsp",
 
     # most up-to-date planets
-    "/spk/planets/de440.bsp",
+    "/spk/planets/de442.bsp",
 
     # leap seconds
     "/lsk/naif0012.tls",
@@ -82,24 +94,6 @@ defmodule Mix.Tasks.Astro.Kernels do
     "/pck/gm_de440.tpc",
     "/pck/moon_pa_de440_200625.bpc",
     "/pck/earth_latest_high_prec.bpc"
-  ]
-
-  @archived_kernels [
-    "/spk/lagrange_point/L1_de431.bsp",
-    "/spk/lagrange_point/L2_de431.bsp",
-    "/spk/lagrange_point/L4_de431.bsp",
-    "/spk/lagrange_point/L5_de431.bsp",
-    "/spk/satellites/mar097.bsp",
-    "/spk/satellites/jup344.bsp",
-    "/spk/satellites/jup346.bsp",
-    "/spk/satellites/sat452.bsp",
-    "/spk/satellites/sat453.bsp",
-    "/spk/satellites/ura111.bsp",
-    "/spk/satellites/ura115.bsp",
-    "/spk/satellites/ura116.bsp",
-    "/spk/satellites/nep095.bsp",
-    "/spk/satellites/nep102.bsp",
-    "/spk/satellites/plu058.bsp"
   ]
 
   @impl Mix.Task
@@ -144,17 +138,7 @@ defmodule Mix.Tasks.Astro.Kernels do
       IO.puts("File #{path} exists. Skipping")
     else
       IO.puts("Downloading #{path} ...")
-      download(url(path), destination)
-    end
-  end
-
-  # NAIF moves superseded kernels into the directory's a_old_versions/; keep
-  # the local layout and configured paths unchanged.
-  defp url(path) do
-    if path in @archived_kernels do
-      Enum.join([@base_url, Path.dirname(path), "a_old_versions", Path.basename(path)], "/")
-    else
-      @base_url <> path
+      download(@base_url <> path, destination)
     end
   end
 

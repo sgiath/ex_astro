@@ -67,12 +67,12 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: priv/kernels
-          key: spice-test-kernels-v1
+          key: spice-test-kernels-v2
 
       - name: Download SPICE kernels
         if: steps.kernels.outputs.cache-hit != 'true'
         run: |
-          for kernel in lsk/naif0012.tls lsk/latest_leapseconds.tls pck/pck00011.tpc pck/gm_de440.tpc spk/planets/de440.bsp; do
+          for kernel in lsk/naif0012.tls lsk/latest_leapseconds.tls pck/pck00011.tpc pck/gm_de440.tpc spk/planets/de442.bsp; do
             curl --fail --silent --show-error --location --create-dirs \
               --output "priv/kernels/$kernel" \
               "https://naif.jpl.nasa.gov/pub/naif/generic_kernels/$kernel"

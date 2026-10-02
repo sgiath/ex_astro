@@ -16,7 +16,7 @@ and [ERFA](https://github.com/liberfa/erfa) libraries
   />
 </p>
 
-Real osculating orbits at a real epoch, drawn from JPL DE440 ephemerides by
+Real osculating orbits at a real epoch, drawn from JPL DE442 ephemerides by
 [`examples/orbits.livemd`](https://github.com/sgiath/ex_astro/blob/master/examples/orbits.livemd).
 
 <p align="center">
@@ -66,7 +66,7 @@ mix astro.kernels
 Configure kernels that should load when the application starts. Resolve them with
 `Application.app_dir/2` in `config/runtime.exs` (replace `:my_app` with your application) so the
 paths do not depend on the working directory of a release. The examples below need at least the
-leap-second kernel, planetary constants, the DE440 ephemeris, and `gm_de440.tpc`, which supplies
+leap-second kernel, planetary constants, the DE442 ephemeris, and `gm_de440.tpc`, which supplies
 the gravitational parameters `Astro.Orbit.osculating/4` reads when no `:mu` is given:
 
 ```elixir
@@ -76,7 +76,7 @@ config :ex_astro,
           "priv/kernels/lsk/naif0012.tls",
           "priv/kernels/pck/pck00011.tpc",
           "priv/kernels/pck/gm_de440.tpc",
-          "priv/kernels/spk/planets/de440.bsp"
+          "priv/kernels/spk/planets/de442.bsp"
         ],
         do: Application.app_dir(:my_app, path)
 ```

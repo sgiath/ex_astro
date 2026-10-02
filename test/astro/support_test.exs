@@ -6,7 +6,7 @@ defmodule Astro.SupportTest do
   @many_values Enum.map(1..20, &(&1 * 1.0))
 
   test "dirty scheduled SPK inspection preserves public return shape" do
-    assert {:ok, ids} = Astro.Support.spkobj("priv/kernels/spk/planets/de440.bsp")
+    assert {:ok, ids} = Astro.Support.spkobj("priv/kernels/spk/planets/de442.bsp")
 
     assert 399 in ids
   end
