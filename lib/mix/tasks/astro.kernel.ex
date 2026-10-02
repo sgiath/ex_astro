@@ -70,6 +70,24 @@ defmodule Mix.Tasks.Astro.Kernels do
     "/pck/earth_latest_high_prec.bpc"
   ]
 
+  @archived_kernels [
+    "/spk/lagrange_point/L1_de431.bsp",
+    "/spk/lagrange_point/L2_de431.bsp",
+    "/spk/lagrange_point/L4_de431.bsp",
+    "/spk/lagrange_point/L5_de431.bsp",
+    "/spk/satellites/mar097.bsp",
+    "/spk/satellites/jup344.bsp",
+    "/spk/satellites/jup346.bsp",
+    "/spk/satellites/sat452.bsp",
+    "/spk/satellites/sat453.bsp",
+    "/spk/satellites/ura111.bsp",
+    "/spk/satellites/ura115.bsp",
+    "/spk/satellites/ura116.bsp",
+    "/spk/satellites/nep095.bsp",
+    "/spk/satellites/nep102.bsp",
+    "/spk/satellites/plu058.bsp"
+  ]
+
   @impl Mix.Task
   def run(_args) do
     failures =
@@ -106,7 +124,17 @@ defmodule Mix.Tasks.Astro.Kernels do
       IO.puts("File #{path} exists. Skipping")
     else
       IO.puts("Downloading #{path} ...")
-      download(@base_url <> path, destination)
+      download(url(path), destination)
+    end
+  end
+
+  # NAIF moves superseded kernels into the directory's a_old_versions/; keep
+  # the local layout and configured paths unchanged.
+  defp url(path) do
+    if path in @archived_kernels do
+      Enum.join([@base_url, Path.dirname(path), "a_old_versions", Path.basename(path)], "/")
+    else
+      @base_url <> path
     end
   end
 
