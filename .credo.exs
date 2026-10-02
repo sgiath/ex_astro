@@ -27,7 +27,8 @@
 
           ## Readability Checks
           {Credo.Check.Readability.FunctionNames, []},
-          {Credo.Check.Readability.MaxLineLength, [priority: :low, max_length: 98]},
+          # Styler formats to 122 columns; keep Credo in agreement.
+          {Credo.Check.Readability.MaxLineLength, [priority: :low, max_length: 122]},
           {Credo.Check.Readability.ModuleAttributeNames, []},
           {Credo.Check.Readability.ModuleNames, []},
           {Credo.Check.Readability.OnePipePerLine, [files: %{included: ["lib/**/*.ex"]}]},
@@ -40,6 +41,8 @@
           {Credo.Check.Readability.TrailingBlankLine, []},
           {Credo.Check.Readability.TrailingWhiteSpace, []},
           {Credo.Check.Readability.VariableNames, []},
+          {Credo.Check.Readability.ModuleDoc, []},
+          {Credo.Check.Readability.Specs, []},
 
           ## Refactoring Opportunities
           {Credo.Check.Refactor.Apply, []},
@@ -95,7 +98,6 @@
           {Credo.Check.Readability.BlockPipe, []},
           {Credo.Check.Readability.ImplTrue, []},
           {Credo.Check.Readability.LargeNumbers, []},
-          {Credo.Check.Readability.ModuleDoc, []},
           {Credo.Check.Readability.MultiAlias, []},
           {Credo.Check.Readability.NestedFunctionCalls, []},
           {Credo.Check.Readability.OneArityFunctionInPipe, []},
@@ -104,7 +106,6 @@
           {Credo.Check.Readability.PreferImplicitTry, []},
           {Credo.Check.Readability.SingleFunctionToBlockPipe, []},
           {Credo.Check.Readability.SinglePipe, []},
-          {Credo.Check.Readability.Specs, []},
           {Credo.Check.Readability.StrictModuleLayout, []},
           {Credo.Check.Readability.StringSigils, []},
           {Credo.Check.Readability.UnnecessaryAliasExpansion, []},

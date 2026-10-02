@@ -9,9 +9,20 @@ defmodule Astro.NIF do
     |> :erlang.load_nif(0)
   end
 
+  @type result(value) :: {:ok, value} | {:error, String.t()}
+  @type state_result :: {:ok, [float()], float()} | {:error, String.t()}
+  @type star_entry :: {float(), float(), float(), float(), float(), float()}
+
+  @spec kernel_furnsh(String.t()) :: :ok | {:error, String.t()}
   def kernel_furnsh(_path), do: :erlang.nif_error({:error, :not_loaded})
+
+  @spec kernel_unload(String.t()) :: :ok | {:error, String.t()}
   def kernel_unload(_path), do: :erlang.nif_error({:error, :not_loaded})
+
+  @spec kernel_clear() :: :ok | {:error, String.t()}
   def kernel_clear, do: :erlang.nif_error({:error, :not_loaded})
+
+  @spec kernel_list() :: result([String.t()])
   def kernel_list, do: :erlang.nif_error({:error, :not_loaded})
 
   @spec dtf2d(integer(), integer(), integer(), integer(), integer(), float()) ::
@@ -67,24 +78,43 @@ defmodule Astro.NIF do
   @spec day2sec(float(), float()) :: float()
   def day2sec(_jd1, _jd2), do: :erlang.nif_error({:error, :not_loaded})
 
+  @spec spkezr(String.t(), float(), String.t(), String.t(), String.t()) :: state_result()
   def spkezr(_target, _et, _reference_frame, _abcorr, _observer), do: :erlang.nif_error({:error, :not_loaded})
 
+  @spec spkez(integer(), float(), String.t(), String.t(), integer()) :: state_result()
   def spkez(_target, _et, _reference_frame, _abcorr, _observer), do: :erlang.nif_error({:error, :not_loaded})
 
+  @spec spkgeo(integer(), float(), String.t(), integer()) :: state_result()
   def spkgeo(_target, _et, _reference_frame, _observer), do: :erlang.nif_error({:error, :not_loaded})
 
+  @spec oscelt([float()], float(), float()) :: result([float()])
   def oscelt(_state, _et, _mu), do: :erlang.nif_error({:error, :not_loaded})
+
+  @spec conics([float()], float()) :: result([float()])
   def conics(_elements, _et), do: :erlang.nif_error({:error, :not_loaded})
 
+  @spec bodc2n(integer()) :: result(String.t())
   def bodc2n(_code), do: :erlang.nif_error({:error, :not_loaded})
+
+  @spec bodn2c(String.t()) :: result(integer())
   def bodn2c(_name), do: :erlang.nif_error({:error, :not_loaded})
+
+  @spec spkobj(String.t()) :: result([integer()])
   def spkobj(_path), do: :erlang.nif_error({:error, :not_loaded})
+
+  @spec bodvcd(integer(), String.t()) :: result([float()])
   def bodvcd(_code, _item), do: :erlang.nif_error({:error, :not_loaded})
+
+  @spec bodvrd(String.t(), String.t()) :: result([float()])
   def bodvrd(_name, _item), do: :erlang.nif_error({:error, :not_loaded})
 
+  @spec pmsafe(float(), float(), float(), float(), float(), float(), {float(), float()}, {float(), float()}) ::
+          {:ok, star_entry(), integer()}
   def pmsafe(_ra, _dec, _pmr, _pmd, _px, _rv, _epoch1, _epoch2), do: :erlang.nif_error({:error, :not_loaded})
 
+  @spec starpv(float(), float(), float(), float(), float(), float()) :: {:ok, [float()], integer()}
   def starpv(_ra, _dec, _pmr, _pmd, _px, _rv), do: :erlang.nif_error({:error, :not_loaded})
 
+  @spec pvstar([float()]) :: {:ok, star_entry(), integer()}
   def pvstar(_pv), do: :erlang.nif_error({:error, :not_loaded})
 end
