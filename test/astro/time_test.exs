@@ -180,23 +180,23 @@ defmodule Astro.TimeTest do
     end
   end
 
-  test "observer-aware tt2tdb and tdb2tt accept topocentric ERFA arguments" do
-    tt = {2_460_000.0, 0.123456}
-    ut = 43_210.0
-    elong = 0.7
-    u = 4_500.0
-    v = 4_400.0
+  test "observer-aware tt2tdb and tdb2tt match the ERFA dtdb reference with UT in seconds" do
+    # ERFA t_erfa_c.c t_dtdb: eraDtdb(2448939.5, 0.123, 0.76543, 5.0123,
+    # 5525.242, 3190.0) = -0.1280368005936998991e-2 s, UT1 given as 0.76543 day.
+    tt = {2_448_939.5, 0.123}
+    ut = 0.76543 * 86_400.0
+    elong = 5.0123
+    u = 5_525.242
+    v = 3_190.0
 
-    geocentric_tdb = Astro.Time.tt2tdb(tt)
-    topocentric_tdb = Astro.Time.tt2tdb(tt, ut, elong, u, v)
+    {tdb1, tdb2} = Astro.Time.tt2tdb(tt, ut, elong, u, v)
 
-    topocentric_tt =
-      topocentric_tdb
-      |> Astro.Time.tdb2tt(ut, elong, u, v)
-      |> Astro.Time.jd_to_float()
+    assert tdb1 == 2_448_939.5
+    assert_in_delta (tdb2 - 0.123) * 86_400.0, -0.1280368005936998991e-2, 1.0e-11
 
-    assert Astro.Time.tt2tdb(tt, 0.0, 0.0, 0.0, 0.0) == geocentric_tdb
-    assert match?({tdb1, tdb2} when is_float(tdb1) and is_float(tdb2), topocentric_tdb)
-    assert_in_delta topocentric_tt, Astro.Time.jd_to_float(tt), 1.0e-9
+    {tt1, tt2} = Astro.Time.tdb2tt({tdb1, tdb2}, ut, elong, u, v)
+
+    assert tt1 == 2_448_939.5
+    assert_in_delta tt2, 0.123, 1.0e-15
   end
 end

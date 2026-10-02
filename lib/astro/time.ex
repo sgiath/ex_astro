@@ -222,7 +222,7 @@ defmodule Astro.Time do
 
   Inputs:
 
-  - `ut` - universal time of day in seconds
+  - `ut` - UT1 time of day in seconds (`0.0..86_400.0`)
   - `elong` - observer east longitude in radians
   - `u` - distance from Earth's spin axis in km
   - `v` - distance north of Earth's equatorial plane in km
@@ -249,6 +249,8 @@ defmodule Astro.Time do
   @doc """
   Convert a TDB split Julian Date to `TT` using explicit observer terms for
   ERFA's `eraDtdb` model.
+
+  Takes the same observer inputs as `tt2tdb/5`, with `ut` in seconds.
   """
   @spec tdb2tt(julian_date(), float(), radians(), kilometers(), kilometers()) :: julian_date()
   def tdb2tt(julian_date, ut, elong, u, v) when is_jd(julian_date) do

@@ -6,6 +6,8 @@
   `jd2dt/1` returns second `60` and `to_datetime/1` raises for it
 - replace the unguarded Kepler Newton iteration with a bisection-safeguarded
   solver; near-parabolic orbits no longer return divergent eccentric anomalies
+- convert the documented observer `ut` seconds of `tt2tdb/5` and `tdb2tt/5`
+  to the day fraction ERFA expects; the seconds were previously passed as days
 
 ## v0.3.0 (2026-08-15)
 

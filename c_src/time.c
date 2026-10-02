@@ -1,5 +1,6 @@
 #include "utils.h"
 #include "nifs.h"
+#include <erfam.h>
 
 static bool
 erfa_status_ok(int status)
@@ -134,6 +135,9 @@ exa_nif_tt2tdb(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
       !enif_get_double(env, argv[5], &v))
     return enif_make_badarg(env);
 
+  /* The public API takes UT in seconds; eraDtdb wants a fraction of a day. */
+  ut /= ERFA_DAYSEC;
+
   dtr = eraDtdb(tt1, tt2, ut, elong, u, v);
 
   status = eraTttdb(tt1, tt2, dtr, &tdb1, &tdb2);
@@ -177,6 +181,9 @@ exa_nif_tdb2tt(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
       !enif_get_double(env, argv[4], &u) ||
       !enif_get_double(env, argv[5], &v))
     return enif_make_badarg(env);
+
+  /* The public API takes UT in seconds; eraDtdb wants a fraction of a day. */
+  ut /= ERFA_DAYSEC;
 
   dtr = eraDtdb(tdb1, tdb2, ut, elong, u, v);
 
