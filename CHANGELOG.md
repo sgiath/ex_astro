@@ -17,6 +17,8 @@
   despite specs promising a bare float
 - **breaking:** `Astro.Kernel.loaded/0` returns `{:ok, paths}` or
   `{:error, message}` like the other kernel operations instead of raising
+- resolve the body name and read its values under one CSPICE lock in
+  `Astro.Support.bodvrd/2`, so concurrent kernel changes cannot mix pool states
 
 ## v0.3.0 (2026-08-15)
 

@@ -72,8 +72,9 @@ body_value_error(ErlNifEnv *env, char *prefix, SpiceChar *name)
   return exa_error_result(env, message);
 }
 
+/* Caller must hold the CSPICE lock; it is still held on return. */
 static ERL_NIF_TERM
-body_values(ErlNifEnv *env, SpiceInt code, SpiceChar *item)
+read_body_values(ErlNifEnv *env, SpiceInt code, SpiceChar *item)
 {
   SpiceChar name[BODY_VALUE_NAME_LENGTH];
   SpiceChar error[CSPICE_ERROR_LENGTH];
@@ -87,77 +88,38 @@ body_values(ErlNifEnv *env, SpiceInt code, SpiceChar *item)
   if (!body_value_name(code, item, name, sizeof(name)))
     return exa_error_result(env, "kernel variable name exceeds supported native buffer");
 
-  if (!exa_cspice_lock())
-    return exa_cspice_sync_error(env);
-
   dtpool_c(name, &found, &dim, type);
 
   if (exa_cspice_failed(error))
-  {
-    exa_cspice_unlock();
     return exa_error_result(env, error);
-  }
 
   if (!found)
-  {
-    exa_cspice_unlock();
     return body_value_error(env, "kernel variable not found", name);
-  }
 
   if (type[0] != 'N')
-  {
-    exa_cspice_unlock();
     return body_value_error(env, "kernel variable is not numeric", name);
-  }
 
   if (dim < 0 || (size_t)dim > SIZE_MAX / sizeof(SpiceDouble))
-  {
-    exa_cspice_unlock();
     return body_value_error(env, "kernel variable value count exceeds supported allocation size", name);
-  }
 
   if (dim == 0)
-  {
-    exa_cspice_unlock();
     return exa_ok_result(env, enif_make_list(env, 0));
-  }
 
-  if (dim > 0)
-  {
-    values = malloc((size_t)dim * sizeof(SpiceDouble));
-    if (values == NULL)
-    {
-      exa_cspice_unlock();
-      return body_value_error(env, "failed to allocate kernel variable values", name);
-    }
-  }
+  values = malloc((size_t)dim * sizeof(SpiceDouble));
+  if (values == NULL)
+    return body_value_error(env, "failed to allocate kernel variable values", name);
 
   gdpool_c(name, 0, dim, &count, values, &found);
 
   if (exa_cspice_failed(error))
-  {
-    exa_cspice_unlock();
     result = exa_error_result(env, error);
-    goto cleanup;
-  }
-
-  exa_cspice_unlock();
-
-  if (!found)
-  {
+  else if (!found)
     result = body_value_error(env, "kernel variable not found", name);
-    goto cleanup;
-  }
-
-  if (count != dim)
-  {
+  else if (count != dim)
     result = body_value_error(env, "kernel variable value count changed while reading", name);
-    goto cleanup;
-  }
+  else
+    result = exa_ok_result(env, exa_make_list(env, values, dim));
 
-  result = exa_ok_result(env, exa_make_list(env, values, dim));
-
-cleanup:
   free(values);
 
   return result;
@@ -338,7 +300,14 @@ exa_nif_bodvcd(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
     goto cleanup;
   }
 
-  result = body_values(env, code, item);
+  if (!exa_cspice_lock())
+  {
+    result = exa_cspice_sync_error(env);
+    goto cleanup;
+  }
+
+  result = read_body_values(env, code, item);
+  exa_cspice_unlock();
 
 cleanup:
   free(item);
@@ -368,24 +337,18 @@ exa_nif_bodvrd(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
     goto cleanup;
   }
 
+  /* Resolve the name and read its values under one lock so a concurrent
+   * kernel mutation cannot pair a code with values from another pool state. */
   bods2c_c(name, &code, &found);
 
   if (exa_cspice_failed(error))
-  {
-    exa_cspice_unlock();
     result = exa_error_result(env, error);
-    goto cleanup;
-  }
+  else if (!found)
+    result = exa_error_result(env, "body not found");
+  else
+    result = read_body_values(env, code, item);
 
   exa_cspice_unlock();
-
-  if (!found)
-  {
-    result = exa_error_result(env, "body not found");
-    goto cleanup;
-  }
-
-  result = body_values(env, code, item);
 
 cleanup:
   free(name);
