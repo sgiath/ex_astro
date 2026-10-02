@@ -18,6 +18,12 @@ defmodule Mix.Tasks.Astro.Kernels do
   updates it about twice a week, so every run downloads it again. Rerun the
   task regularly when you need current Earth orientation.
 
+  Every download must start with the SPICE ID word of its kernel type, and
+  every kernel NAIF does not replace in place must also match the SHA-256
+  pinned in `Astro.Kernel.Catalog`; a download that fails either check is
+  discarded and reported as a failure. Existing files are only checked for
+  their ID word, not re-hashed.
+
   If you want to download more kernels manually look here:
   https://naif.jpl.nasa.gov/pub/naif/generic_kernels/
   """
@@ -75,7 +81,7 @@ defmodule Mix.Tasks.Astro.Kernels do
       # A failed refresh keeps the old file; download/2 only replaces it on success.
       Catalog.refresh?(path) ->
         IO.puts("Refreshing #{path} ...")
-        download(Catalog.url(path), destination)
+        download(path, destination)
 
       File.exists?(destination) ->
         case Catalog.check_id_word(destination, path) do
@@ -84,27 +90,28 @@ defmodule Mix.Tasks.Astro.Kernels do
 
           failure ->
             Mix.shell().error("File #{path} is unusable (#{failure_reason(failure)}); downloading it again")
-            download(Catalog.url(path), destination)
+            download(path, destination)
         end
 
       true ->
         IO.puts("Downloading #{path} ...")
-        download(Catalog.url(path), destination)
+        download(path, destination)
     end
   end
 
   # Stream into a file next to the destination and rename only after a
-  # complete HTTP 200 response whose content starts with the kernel's ID word,
-  # so a failed, interrupted or bogus download never leaves a file that a
-  # later run would skip as already present. Streaming keeps gigabyte-sized
-  # kernels such as jup365.bsp out of memory.
-  defp download(url, destination) do
+  # complete HTTP 200 response whose content starts with the kernel's ID word
+  # and matches its pinned SHA-256, so a failed, interrupted or bogus download
+  # never leaves a file that a later run would skip as already present.
+  # Streaming keeps gigabyte-sized kernels such as jup365.bsp out of memory.
+  defp download(path, destination) do
     partial = destination <> ".part"
 
     result =
       with :ok <- File.mkdir_p(Path.dirname(destination)),
-           {:ok, %{status: 200}} <- stream_to_file(url, partial),
-           :ok <- Catalog.check_id_word(partial, destination) do
+           {:ok, %{status: 200}} <- stream_to_file(Catalog.url(path), partial),
+           :ok <- Catalog.check_id_word(partial, path),
+           :ok <- Catalog.check_sha256(partial, path) do
         File.rename(partial, destination)
       end
 

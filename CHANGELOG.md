@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- `mix astro.kernels` verifies a pinned SHA-256 for every catalog kernel NAIF
+  does not replace in place; `earth_latest_high_prec.bpc` and
+  `latest_leapseconds.tls` keep the ID-word check only
 - add `Astro.Kernel.Catalog`, the default NAIF generic kernel set in SPICE load
   order with each kernel's download URL and SPICE ID word check.
   `mix astro.kernels` downloads and validates exactly this set; the catalog

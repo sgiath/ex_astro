@@ -98,6 +98,11 @@ regenerates that high-precision Earth orientation kernel about twice a week, ext
 data and the prediction that follows it, so every run downloads it again. Rerun the task regularly
 and restart the application (or `Astro.Kernel.unload/1` and `load/1` the file) to use the new data.
 
+Every download must start with the SPICE ID word of its kernel type and, except for the two kernels
+NAIF replaces in place (`pck/earth_latest_high_prec.bpc` and `lsk/latest_leapseconds.tls`), match
+the SHA-256 pinned in `Astro.Kernel.Catalog`. A download that fails either check is discarded and
+reported; kernels already on disk are not re-hashed.
+
 ## Time API
 
 `Astro.Time` represents Julian Dates as two-part tuples `{jd1, jd2}` rather than a single float.

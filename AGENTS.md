@@ -50,7 +50,11 @@ Use this file to understand the local workflow and style.
 - Kernel mutations are atomic against the single CSPICE pool and safe at runtime
 - `Astro.Kernel.Catalog` is the single list of default NAIF kernels, in SPICE
   load order; edit kernels there only
-- The `mix astro.kernels` task downloads the catalog to `priv/kernels/`
+- Every catalog kernel needs a pinned SHA-256 in the catalog's `@sha256`,
+  verified against NAIF's `aa_checksums.txt` MD5 where the directory has one;
+  only kernels NAIF replaces in place go in `@unpinned` instead
+- The `mix astro.kernels` task downloads the catalog to `priv/kernels/` and
+  rejects downloads with a wrong ID word or SHA-256
 - The repo's `config/runtime.exs` loads the catalog plus a test fixture in every
   environment; there is no `config/config.exs`. Mix evaluates `runtime.exs`
   after compiling, so it can call project modules
