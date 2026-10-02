@@ -110,16 +110,16 @@ defmodule Mix.Tasks.Astro.Kernels do
     end
   end
 
-  # Write next to the destination and rename only after a complete HTTP 200
-  # response, so a failed or interrupted download never leaves a file that a
-  # later run would skip as already present.
+  # Stream into a file next to the destination and rename only after a
+  # complete HTTP 200 response, so a failed or interrupted download never
+  # leaves a file that a later run would skip as already present. Streaming
+  # keeps gigabyte-sized kernels such as jup365.bsp out of memory.
   defp download(url, destination) do
     partial = destination <> ".part"
 
     result =
       with :ok <- File.mkdir_p(Path.dirname(destination)),
-           {:ok, %Req.Response{status: 200, body: body}} <- Req.get(url, decode_body: false),
-           :ok <- File.write(partial, body) do
+           {:ok, %Req.Response{status: 200}} <- stream_to_file(url, partial) do
         File.rename(partial, destination)
       end
 
@@ -131,6 +131,13 @@ defmodule Mix.Tasks.Astro.Kernels do
         File.rm(partial)
         {:error, failure_reason(failure)}
     end
+  end
+
+  # Req only streams 200 responses into the file; other bodies stay in memory.
+  defp stream_to_file(url, path) do
+    Req.get(url, decode_body: false, into: File.stream!(path))
+  rescue
+    error in File.Error -> {:error, error}
   end
 
   defp failure_reason({:ok, %Req.Response{status: status}}), do: "HTTP #{status}"

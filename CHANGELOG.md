@@ -26,6 +26,7 @@
   kernel to a `.part` file renamed on success, and exits non-zero listing the
   failed downloads; previously error pages were saved as kernels and skipped
   forever after
+- stream kernel downloads to disk instead of buffering each body in memory
 
 ## v0.3.0 (2026-08-15)
 
