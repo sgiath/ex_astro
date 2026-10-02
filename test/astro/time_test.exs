@@ -95,6 +95,27 @@ defmodule Astro.TimeTest do
     assert converted |> NaiveDateTime.diff(datetime, :microsecond) |> abs() <= 10
   end
 
+  test "to_julian_date and to_et convert offset DateTimes by their UTC instant" do
+    utc = ~U[2000-01-01 12:00:00.250000Z]
+
+    summer_time = %DateTime{
+      year: 2000,
+      month: 1,
+      day: 1,
+      hour: 15,
+      minute: 0,
+      second: 0,
+      microsecond: {250_000, 6},
+      utc_offset: 7_200,
+      std_offset: 3_600,
+      time_zone: "Test/Offset",
+      zone_abbr: "TST"
+    }
+
+    assert Astro.Time.to_julian_date(summer_time) == Astro.Time.to_julian_date(utc)
+    assert Astro.Time.to_et(summer_time) == Astro.Time.to_et(utc)
+  end
+
   test "jd helpers provide explicit float interop" do
     assert Astro.Time.jd_from_float(2_451_545.0) == {2_451_545.0, 0.0}
     assert Astro.Time.jd_to_float({2_451_545.0, 0.25}) == 2_451_545.25

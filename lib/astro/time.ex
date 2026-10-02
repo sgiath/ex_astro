@@ -106,12 +106,21 @@ defmodule Astro.Time do
   end
 
   @doc """
-  Convert a `DateTime` or `NaiveDateTime` to a split Julian Date.
+  Convert a `DateTime` or `NaiveDateTime` to a UTC split Julian Date.
 
-  Calendar fields are interpreted as `UTC`.
+  A `DateTime` is converted by its UTC instant: its `utc_offset` and
+  `std_offset` are subtracted from the wall-clock fields. `NaiveDateTime`
+  fields are interpreted as UTC.
   """
   @spec to_julian_date(DateTime.t() | NaiveDateTime.t()) :: julian_date()
-  def to_julian_date(dt) when is_struct(dt, DateTime) or is_struct(dt, NaiveDateTime) do
+  def to_julian_date(%DateTime{utc_offset: utc_offset, std_offset: std_offset} = dt) do
+    dt
+    |> DateTime.to_naive()
+    |> NaiveDateTime.add(-(utc_offset + std_offset), :second)
+    |> to_julian_date()
+  end
+
+  def to_julian_date(%NaiveDateTime{} = dt) do
     sec =
       case dt.microsecond do
         {_value, 0} -> dt.second * 1.0
@@ -292,7 +301,7 @@ defmodule Astro.Time do
   @doc """
   Convert a `DateTime` or `NaiveDateTime` to SPICE Ephemeris Time (`ET`).
 
-  Calendar fields are interpreted as UTC. Returns TDB seconds past J2000,
+  Offsets are applied as in `to_julian_date/1`. Returns TDB seconds past J2000,
   computed via ERFA (UTC -> TAI -> TT -> TDB), so no leap second kernel is
   required. Equivalent to `utc2et/1` for string inputs.
   """

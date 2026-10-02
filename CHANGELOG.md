@@ -8,6 +8,8 @@
   solver; near-parabolic orbits no longer return divergent eccentric anomalies
 - convert the documented observer `ut` seconds of `tt2tdb/5` and `tdb2tt/5`
   to the day fraction ERFA expects; the seconds were previously passed as days
+- convert `DateTime` values by their UTC instant in `to_julian_date/1` and
+  `to_et/1`; non-UTC offsets were previously ignored
 
 ## v0.3.0 (2026-08-15)
 
