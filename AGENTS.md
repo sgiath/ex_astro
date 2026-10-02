@@ -48,7 +48,12 @@ Use this file to understand the local workflow and style.
   application startup
 - `Astro.Kernel` loads, unloads, and lists kernels at runtime
 - Kernel mutations are atomic against the single CSPICE pool and safe at runtime
-- The `mix astro.kernels` task writes to `priv/kernels/`
+- `Astro.Kernel.Catalog` is the single list of default NAIF kernels, in SPICE
+  load order; edit kernels there only
+- The `mix astro.kernels` task downloads the catalog to `priv/kernels/`
+- The repo's `config/runtime.exs` loads the catalog plus a test fixture in every
+  environment; there is no `config/config.exs`. Mix evaluates `runtime.exs`
+  after compiling, so it can call project modules
 
 <!-- BACKLOG.MD MCP GUIDELINES START -->
 

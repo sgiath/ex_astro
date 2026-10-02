@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- add `Astro.Kernel.Catalog`, the default NAIF generic kernel set in SPICE load
+  order with each kernel's download URL and SPICE ID word check.
+  `mix astro.kernels` downloads and validates exactly this set; the catalog
+  changes between releases as NAIF publishes newer kernels
 - **breaking:** `Astro.Orbit.osculating/4` raises `ArgumentError` for options
   other than `:frame`, `:abcorr`, and `:mu`; misspelled options were silently
   ignored. `Astro.Orbit` gains a `frame` field, set by `osculating/4` and `nil`
