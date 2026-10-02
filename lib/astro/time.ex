@@ -39,6 +39,13 @@ defmodule Astro.Time do
     `str2et/1` accepts up to 256 bytes, `utc2et/1` accepts up to 80 bytes, and
     `unitim/3` time-system names accept up to 5 bytes. Invalid native strings
     raise `ArgumentError`.
+  - UTC conversions (`dtf2d/6`, `to_julian_date/1`, `jd2dt/1`, `to_datetime/1`,
+    `utc2tai/1`, `tai2utc/1`, `to_et/1`, `from_et/1`) accept dates that
+    ERFA's leap-second table flags as dubious and return a result without a
+    warning. Before 1960 UTC did not exist and `TAI - UTC` is taken as zero;
+    more than about five years after the installed ERFA release, future leap
+    seconds are unknown and the last tabulated offset is used. Results in
+    either range are not reliable at the leap-second level.
 
   ## Example
 
