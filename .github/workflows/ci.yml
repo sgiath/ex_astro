@@ -11,18 +11,19 @@ jobs:
   check:
     name: check (Elixir ${{ matrix.elixir }}, OTP ${{ matrix.otp }})
     # The vendored CSPICE libraries only support Linux x86_64. ubuntu-24.04 is
-    # pinned because setup-beam provides OTP 24-25 only up to that image.
+    # pinned because setup-beam provides OTP 25 only up to that image.
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
-      # Every supported Elixir with every OTP it supports:
+      # Every supported Elixir with every OTP it supports, from OTP 25:
       # https://hexdocs.pm/elixir/compatibility-and-deprecations.html
+      # OTP 24 is excluded: finch >= 0.24 (via the optional req) creates an ETS
+      # table with `write_concurrency: :auto`, which OTP 24 rejects at boot.
       # `full: false` rows build the NIF and run the test suite instead of
       # `mix check`: dev-only tooling (ex_check, mix_test_watch) requires
       # Elixir 1.17 or 1.18.
       matrix:
         include:
-          - { elixir: "1.16", otp: "24", full: false }
           - { elixir: "1.16", otp: "25", full: false }
           - { elixir: "1.16", otp: "26", full: false }
           - { elixir: "1.17", otp: "25", full: false }

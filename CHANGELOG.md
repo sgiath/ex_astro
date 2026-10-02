@@ -37,6 +37,8 @@
   every configured kernel) before downloading. `:ex_doc` is dev-only
 - **breaking:** require Elixir 1.16 or newer; 1.15 no longer receives
   security patches
+- **breaking:** require Erlang/OTP 25 or newer; finch 0.24, pulled in by the
+  optional `req`, cannot start on OTP 24, which no longer receives patches
 
 ## v0.3.0 (2026-08-15)
 

@@ -35,6 +35,7 @@ from published catalog astrometry propagated through `Astro.Star`.
 
 It is a bit more complicated then normal lib so pay attention:
 
+- use Elixir 1.16+ on Erlang/OTP 25+
 - instal ERFA library
   - <https://github.com/liberfa/erfa?tab=readme-ov-file#building-and-installing-erfa>
 - use `x86_64-linux`; CSPICE N0067 is bundled, so compilation does not download the toolkit. The
