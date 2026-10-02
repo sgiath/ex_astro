@@ -37,8 +37,9 @@ own before they combine into the finished scenes.
 The first evaluation downloads about 92 MB of SPICE kernels to
 `~/.cache/ex_astro/kernels` (sha256-verified) and then writes
 `solar-system.svg` and `inner-system.svg` next to this notebook. The NIF
-build needs a C toolchain and liberfa at link time - inside this repo's
-devenv: `devenv shell`, then open the notebook in Livebook.
+build needs a C toolchain and liberfa at link time - this repo's Nix flake
+provides both: run `nix develop` (or `direnv allow`) in the repo root, then
+start Livebook from that shell.
 
 ## Load kernels at runtime
 

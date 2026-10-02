@@ -40,8 +40,9 @@ _The 10 parsec sample in the Gaia era_, to `~/.cache/ex_astro/catalogs/`. The
 notebook verifies the catalog's SHA-256 digest and writes `nearby-stars.svg`
 next to itself.
 
-The NIF build needs a C toolchain and liberfa at link time — inside this
-repo's devenv: `devenv shell`, then open the notebook in Livebook.
+The NIF build needs a C toolchain and liberfa at link time — this repo's Nix
+flake provides both: run `nix develop` (or `direnv allow`) in the repo root,
+then start Livebook from that shell.
 
 ## Load the 10 parsec catalog
 

@@ -13,8 +13,8 @@ library calls and the math behind them.
 Open them in [Livebook](https://livebook.dev) (or `livebook server examples` from the repo root).
 Each notebook downloads its data on first run and writes the SVG snapshots next to itself.
 
-The NIF build needs a C toolchain and liberfa at link time. Inside this repo's devenv:
-`devenv shell`, then open the notebook.
+The NIF build needs a C toolchain and liberfa at link time. This repo's Nix flake provides both:
+run `nix develop` (or `direnv allow`) in the repo root, then start Livebook from that shell.
 
 <p align="center">
   <img 
