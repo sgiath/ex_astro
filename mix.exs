@@ -41,8 +41,8 @@ defmodule Astro.MixProject do
 
   defp deps do
     [
-      # HTTP client to download kernels
-      {:req, "~> 0.7"},
+      # HTTP client for the optional `mix astro.kernels` downloader
+      {:req, "~> 0.7", optional: true},
 
       # C compilation
       {:elixir_make, "~> 0.10", runtime: false},
@@ -51,7 +51,7 @@ defmodule Astro.MixProject do
       {:ex_check, "~> 0.17", only: [:dev], runtime: false},
       {:credo, "~> 1.7", only: [:dev], runtime: false},
       {:styler, "~> 1.12", only: [:dev, :test], runtime: false},
-      {:ex_doc, "~> 0.40", runtime: false},
+      {:ex_doc, "~> 0.40", only: :dev, runtime: false},
       {:mix_test_watch, "~> 1.4", only: [:dev], runtime: false}
     ]
   end

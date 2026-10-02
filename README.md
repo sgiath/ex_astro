@@ -39,13 +39,15 @@ It is a bit more complicated then normal lib so pay attention:
   - <https://github.com/liberfa/erfa?tab=readme-ov-file#building-and-installing-erfa>
 - use `x86_64-linux`; CSPICE N0067 is bundled, so compilation does not download the toolkit. The
   included Nix flake dev shell supplies the C toolchain and ERFA on NixOS.
-- add `ex_astro` to `mix.exs`
+- add `ex_astro` to `mix.exs`; `req` is optional and only needed for the `mix astro.kernels`
+  downloader
 
 ```elixir
   def deps do
     [
       ...
       {:ex_astro, "~> 0.3"},
+      {:req, "~> 0.7"},
       ...
     ]
   end

@@ -10,13 +10,21 @@ defmodule Mix.Tasks.Astro.Kernels do
   `Application.app_dir/2`, so the paths keep working in releases regardless
   of the working directory.
 
+  Downloading uses the optional `:req` dependency; add `{:req, "~> 0.7"}` to
+  your project's deps to run this task.
+
   If you want to download more kernels manually look here:
   https://naif.jpl.nasa.gov/pub/naif/generic_kernels/
   """
 
   use Mix.Task
 
-  @requirements ["app.start"]
+  # Only configuration is needed; starting :ex_astro would load every
+  # configured kernel before downloading them.
+  @requirements ["app.config"]
+
+  # :req is an optional dependency that only this task uses.
+  @compile {:no_warn_undefined, [Req]}
 
   @base_url "https://naif.jpl.nasa.gov/pub/naif/generic_kernels"
 
@@ -96,6 +104,8 @@ defmodule Mix.Tasks.Astro.Kernels do
 
   @impl Mix.Task
   def run(_args) do
+    start_req!()
+
     failures =
       Enum.flat_map(@kernels, fn path ->
         case fetch(path) do
@@ -157,7 +167,7 @@ defmodule Mix.Tasks.Astro.Kernels do
 
     result =
       with :ok <- File.mkdir_p(Path.dirname(destination)),
-           {:ok, %Req.Response{status: 200}} <- stream_to_file(url, partial) do
+           {:ok, %{status: 200}} <- stream_to_file(url, partial) do
         File.rename(partial, destination)
       end
 
@@ -178,7 +188,15 @@ defmodule Mix.Tasks.Astro.Kernels do
     error in File.Error -> {:error, error}
   end
 
-  defp failure_reason({:ok, %Req.Response{status: status}}), do: "HTTP #{status}"
+  defp failure_reason({:ok, %{status: status}}), do: "HTTP #{status}"
   defp failure_reason({:error, exception}) when is_exception(exception), do: Exception.message(exception)
   defp failure_reason({:error, posix}), do: List.to_string(:file.format_error(posix))
+
+  defp start_req! do
+    if !Code.ensure_loaded?(Req) do
+      Mix.raise(~s(mix astro.kernels needs the optional :req dependency; add {:req, "~> 0.7"} to your deps))
+    end
+
+    {:ok, _apps} = Application.ensure_all_started(:req)
+  end
 end

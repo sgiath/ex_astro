@@ -32,6 +32,9 @@
 - `mix astro.kernels` prints a `config/runtime.exs` snippet that resolves
   kernels with `Application.app_dir/2` instead of working-directory-relative
   paths, so configured kernels also load from releases
+- **breaking:** `:req` is an optional dependency; add `{:req, "~> 0.7"}` to
+  run `mix astro.kernels`. The task no longer starts `:ex_astro` (and loads
+  every configured kernel) before downloading. `:ex_doc` is dev-only
 
 ## v0.3.0 (2026-08-15)
 
