@@ -1,0 +1,149 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: check (Elixir ${{ matrix.elixir }}, OTP ${{ matrix.otp }})
+    # The vendored CSPICE libraries only support Linux x86_64. ubuntu-24.04 is
+    # pinned because setup-beam provides OTP 24-25 only up to that image.
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      # Every supported Elixir with every OTP it supports:
+      # https://hexdocs.pm/elixir/compatibility-and-deprecations.html
+      # `full: false` rows build the NIF and run the test suite instead of
+      # `mix check`: dev-only tooling (ex_check, mix_test_watch) requires
+      # Elixir 1.17 or 1.18.
+      matrix:
+        include:
+          - { elixir: "1.16", otp: "24", full: false }
+          - { elixir: "1.16", otp: "25", full: false }
+          - { elixir: "1.16", otp: "26", full: false }
+          - { elixir: "1.17", otp: "25", full: false }
+          - { elixir: "1.17", otp: "26", full: false }
+          - { elixir: "1.17", otp: "27", full: false }
+          - { elixir: "1.18", otp: "25", full: true }
+          - { elixir: "1.18", otp: "26", full: true }
+          - { elixir: "1.18", otp: "27", full: true }
+          - { elixir: "1.19", otp: "26", full: true }
+          - { elixir: "1.19", otp: "27", full: true }
+          - { elixir: "1.19", otp: "28", full: true }
+          - { elixir: "1.20", otp: "27", full: true }
+          - { elixir: "1.20", otp: "28", full: true }
+          - { elixir: "1.20", otp: "29", full: true }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install ERFA
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends liberfa-dev
+
+      - id: beam
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          otp-version: ${{ matrix.otp }}
+          elixir-version: ${{ matrix.elixir }}
+
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            deps
+            _build
+          key: mix-${{ runner.os }}-${{ runner.arch }}-${{ steps.beam.outputs.otp-version }}-${{ steps.beam.outputs.elixir-version }}-${{ matrix.full && 'full' || 'min' }}-${{ hashFiles('mix.lock') }}
+          restore-keys: |
+            mix-${{ runner.os }}-${{ runner.arch }}-${{ steps.beam.outputs.otp-version }}-${{ steps.beam.outputs.elixir-version }}-${{ matrix.full && 'full' || 'min' }}-
+
+      # Only the kernels the test suite reads; the other configured kernels may
+      # be missing and only log a warning at application start.
+      - id: kernels
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: priv/kernels
+          key: spice-test-kernels-v1
+
+      - name: Download SPICE kernels
+        if: steps.kernels.outputs.cache-hit != 'true'
+        run: |
+          for kernel in lsk/naif0012.tls lsk/latest_leapseconds.tls pck/pck00011.tpc pck/gm_de440.tpc spk/planets/de440.bsp; do
+            curl --fail --silent --show-error --location --create-dirs \
+              --output "priv/kernels/$kernel" \
+              "https://naif.jpl.nasa.gov/pub/naif/generic_kernels/$kernel"
+          done
+
+      - name: Install prettier
+        if: matrix.full
+        run: npm install --global prettier@3.8.3
+
+      - name: Fetch dependencies
+        if: matrix.full
+        run: mix deps.get
+
+      - name: Fetch test dependencies
+        if: ${{ !matrix.full }}
+        run: mix deps.get --only test
+        env:
+          MIX_ENV: test
+
+      - name: mix check
+        if: matrix.full
+        run: mix check
+
+      - name: mix test
+        if: ${{ !matrix.full }}
+        run: mix test
+        env:
+          MIX_ENV: test
+
+  package:
+    name: package (hex.build --unpack)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install ERFA
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends liberfa-dev
+
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          otp-version: "29"
+          elixir-version: "1.20"
+
+      - name: Fetch dependencies
+        run: mix deps.get
+
+      - name: Build and unpack the Hex package
+        run: mix hex.build --unpack --output "$RUNNER_TEMP/ex_astro"
+
+      # Compiles only the files listed in mix.exs `package: [files: ...]`, from a
+      # pristine tree (no c_src/*.o or priv/*.so).
+      - name: Compile the unpacked package as a path dependency
+        working-directory: ${{ runner.temp }}
+        run: |
+          mix new consumer
+          cd consumer
+          cat > mix.exs <<EOF
+          defmodule Consumer.MixProject do
+            use Mix.Project
+
+            def project do
+              [app: :consumer, version: "0.1.0", deps: [{:ex_astro, path: "$RUNNER_TEMP/ex_astro"}]]
+            end
+
+            def application, do: [extra_applications: [:logger]]
+          end
+          EOF
+          mix deps.get
+          mix compile
+          mix run -e '
+            {2451544.5, 0.5} = Astro.Time.dtf2d(2000, 1, 1, 12, 0, 0.0)
+            IO.puts("unpacked package NIF loaded and converted a date")
+          '
