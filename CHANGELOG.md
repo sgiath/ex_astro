@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- decode UTC Julian Dates on leap-second days with their real day length;
+  `jd2dt/1` returns second `60` and `to_datetime/1` raises for it
+
 ## v0.3.0 (2026-08-15)
 
 - add high-level orbit, ephemeris-time, and gravitational-parameter helpers

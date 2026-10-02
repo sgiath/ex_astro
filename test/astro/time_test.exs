@@ -27,6 +27,23 @@ defmodule Astro.TimeTest do
     assert Astro.Time.to_datetime(julian_date) == ~N[2000-01-02 00:00:00.000000]
   end
 
+  test "jd2dt decodes times on a UTC leap-second day" do
+    assert 2016 |> Astro.Time.dtf2d(12, 31, 12, 0, 0.0) |> Astro.Time.jd2dt() ==
+             {2016, 12, 31, 12, 0, 0, 0}
+
+    assert 2016 |> Astro.Time.dtf2d(12, 31, 23, 59, 59.0) |> Astro.Time.jd2dt() ==
+             {2016, 12, 31, 23, 59, 59, 0}
+
+    assert 2016 |> Astro.Time.dtf2d(12, 31, 23, 59, 60.5) |> Astro.Time.jd2dt() ==
+             {2016, 12, 31, 23, 59, 60, 500_000}
+  end
+
+  test "to_datetime rejects the unrepresentable leap second" do
+    leap_second = Astro.Time.dtf2d(2016, 12, 31, 23, 59, 60.5)
+
+    assert_raise ArgumentError, ~r/leap second/, fn -> Astro.Time.to_datetime(leap_second) end
+  end
+
   test "utc tai and tt conversions round trip" do
     utc = {2_451_545.0, 0.0}
 

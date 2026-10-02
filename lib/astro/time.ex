@@ -73,7 +73,11 @@ defmodule Astro.Time do
                   is_float(elem(jd, 0)) and is_float(elem(jd, 1))
 
   @doc """
-  Convert a split Julian Date to a `NaiveDateTime`.
+  Convert a UTC split Julian Date to a `NaiveDateTime`.
+
+  This is the inverse of `to_julian_date/1`. `NaiveDateTime` cannot represent
+  a leap second, so a Julian Date inside second `60` of a leap-second day raises
+  `ArgumentError`; use `jd2dt/1` to decode it.
 
   ## Example
 
@@ -82,18 +86,23 @@ defmodule Astro.Time do
   """
   @spec to_datetime(julian_date()) :: NaiveDateTime.t()
   def to_datetime(julian_date) when is_jd(julian_date) do
-    {y, m, d, h, mn, s, us} = NIF.jd2dt(elem(julian_date, 0), elem(julian_date, 1))
+    case NIF.jd2dt(elem(julian_date, 0), elem(julian_date, 1)) do
+      {y, m, d, _h, _mn, 60, _us} ->
+        raise ArgumentError,
+              "UTC leap second on #{Date.new!(y, m, d)} cannot be represented by NaiveDateTime; use jd2dt/1"
 
-    %NaiveDateTime{
-      year: y,
-      month: m,
-      day: d,
-      hour: h,
-      minute: mn,
-      second: s,
-      microsecond: {us, 6},
-      calendar: Calendar.ISO
-    }
+      {y, m, d, h, mn, s, us} ->
+        %NaiveDateTime{
+          year: y,
+          month: m,
+          day: d,
+          hour: h,
+          minute: mn,
+          second: s,
+          microsecond: {us, 6},
+          calendar: Calendar.ISO
+        }
+    end
   end
 
   @doc """
@@ -144,7 +153,11 @@ defmodule Astro.Time do
   def dtf2d(year, month, day, hour, min, sec), do: NIF.dtf2d(year, month, day, hour, min, sec)
 
   @doc """
-  Convert a split Julian Date to Gregorian calendar components.
+  Convert a UTC split Julian Date to Gregorian calendar components.
+
+  This is the inverse of `dtf2d/6`. Days containing a leap second are decoded
+  with their real length, and the leap second itself is returned as second
+  `60`.
 
   ## Example
 

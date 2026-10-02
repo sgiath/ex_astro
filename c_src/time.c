@@ -19,20 +19,6 @@ make_julian_date(ErlNifEnv *env, double jd1, double jd2)
   return enif_make_tuple2(env, enif_make_double(env, jd1), enif_make_double(env, jd2));
 }
 
-static bool
-advance_calendar_day(int *iy, int *im, int *id)
-{
-  int status;
-  double djm0, djm, fd;
-
-  status = eraCal2jd(*iy, *im, *id, &djm0, &djm);
-  if (!erfa_status_ok(status))
-    return false;
-
-  status = eraJd2cal(djm0, djm + 1.0, iy, im, id, &fd);
-  return erfa_status_ok(status);
-}
-
 ERL_NIF_TERM
 exa_nif_dtf2d(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
@@ -243,33 +229,21 @@ ERL_NIF_TERM
 exa_nif_jd2dt(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
   int status;
-  double jd1, jd2, fd;
+  double jd1, jd2;
   int iy, im, id, ihmsf[4];
-  char sign = '+';
 
   if (!enif_get_double(env, argv[0], &jd1) ||
       !enif_get_double(env, argv[1], &jd2))
     return enif_make_badarg(env);
 
-  status = eraJd2cal(jd1, jd2, &iy, &im, &id, &fd);
-  if (!erfa_status_ok(status))
-    return enif_make_badarg(env);
-
-  eraD2tf(6, fd, &sign, ihmsf);
-
   /*
-   * eraD2tf rounds independently from the calendar date. Near midnight that
-   * can produce hour 24, which Elixir datetime types cannot represent.
+   * Inputs are UTC quasi-JDs from eraDtf2d/eraTaiutc. eraD2dtf scales the day
+   * fraction by the real length of leap-second days and carries rounding
+   * into the next day, so it is the exact inverse of eraDtf2d("UTC").
    */
-  if (ihmsf[0] >= 24) {
-    if (!advance_calendar_day(&iy, &im, &id))
-      return enif_make_badarg(env);
-
-    ihmsf[0] = 0;
-    ihmsf[1] = 0;
-    ihmsf[2] = 0;
-    ihmsf[3] = 0;
-  }
+  status = eraD2dtf("UTC", 6, jd1, jd2, &iy, &im, &id, ihmsf);
+  if (!erfa_status_ok_or_dubious_year(status))
+    return enif_make_badarg(env);
 
   return enif_make_tuple7(
       env,
