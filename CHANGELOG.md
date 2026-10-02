@@ -43,6 +43,9 @@
   are not built into CSPICE N0067 resolve by name. With the asteroid kernel
   loaded, `Astro.Support.bodc2n/1` returns its names (`"1 CERES"`); built-in
   names such as `"CERES"` still resolve with `bodn2c/1`
+- `mix astro.kernels` downloads `earth_latest_high_prec.bpc` again on every
+  run; NAIF updates it about twice a week, and the task used to keep the
+  first copy forever
 - `mix astro.kernels` prints a `config/runtime.exs` snippet that resolves
   kernels with `Application.app_dir/2` instead of working-directory-relative
   paths, so configured kernels also load from releases

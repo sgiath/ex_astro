@@ -93,6 +93,11 @@ Missing configured files log a warning instead of preventing application startup
 downloaded and loaded later. Kernel mutations are atomic against the library's single CSPICE pool
 and safe while other Astro calls are running.
 
+`mix astro.kernels` skips kernels that already exist, except `pck/earth_latest_high_prec.bpc`. NAIF
+regenerates that high-precision Earth orientation kernel about twice a week, extending the measured
+data and the prediction that follows it, so every run downloads it again. Rerun the task regularly
+and restart the application (or `Astro.Kernel.unload/1` and `load/1` the file) to use the new data.
+
 ## Time API
 
 `Astro.Time` represents Julian Dates as two-part tuples `{jd1, jd2}` rather than a single float.

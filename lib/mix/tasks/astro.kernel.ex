@@ -13,6 +13,10 @@ defmodule Mix.Tasks.Astro.Kernels do
   Downloading uses the optional `:req` dependency; add `{:req, "~> 0.7"}` to
   your project's deps to run this task.
 
+  Existing files are kept, except `pck/earth_latest_high_prec.bpc`: NAIF
+  updates it about twice a week, so every run downloads it again. Rerun the
+  task regularly when you need current Earth orientation.
+
   If you want to download more kernels manually look here:
   https://naif.jpl.nasa.gov/pub/naif/generic_kernels/
   """
@@ -114,6 +118,11 @@ defmodule Mix.Tasks.Astro.Kernels do
     "/spk/asteroids/codes_300ast_20100725.tf"
   ]
 
+  # NAIF regenerates these in place under the same name (the Earth PCK about
+  # twice a week, extending measured Earth orientation and its prediction),
+  # so every run downloads them again. A failed refresh keeps the old file.
+  @refreshed ["/pck/earth_latest_high_prec.bpc"]
+
   @impl Mix.Task
   def run(_args) do
     start_req!()
@@ -152,11 +161,17 @@ defmodule Mix.Tasks.Astro.Kernels do
   defp fetch(path) do
     destination = "priv/kernels#{path}"
 
-    if File.exists?(destination) do
-      IO.puts("File #{path} exists. Skipping")
-    else
-      IO.puts("Downloading #{path} ...")
-      download(@base_url <> path, destination)
+    cond do
+      path in @refreshed ->
+        IO.puts("Refreshing #{path} ...")
+        download(@base_url <> path, destination)
+
+      File.exists?(destination) ->
+        IO.puts("File #{path} exists. Skipping")
+
+      true ->
+        IO.puts("Downloading #{path} ...")
+        download(@base_url <> path, destination)
     end
   end
 
